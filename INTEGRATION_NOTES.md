@@ -4,6 +4,11 @@
 *Sandbox/safety section re-verified June 2026 against docs.openclaw.ai/gateway/sandboxing + /security.*
 *OpenClaw moves fast. Re-confirm against YOUR install before relying on any value below.*
 
+> ✅ **LIVE-VERIFIED against OpenClaw 2026.6.9 on 2026-06-21** (Windows, Node v24.17.0)
+> while building Phase 1. Sections marked **[VERIFIED 2026.6.9]** below were corrected
+> to match the real CLI — some earlier command/JSON assumptions were wrong. Anything
+> not so marked is still docs-derived; re-confirm against your version.
+
 ---
 
 ## ✅ CONFIRMED VALUES (the two things the whole product depends on)
@@ -61,11 +66,41 @@ Clawtest Hub's real value is verifying this whole posture, not just file writes:
 
 > **Prompt injection ties it together (your wedge):** OpenClaw's own security docs say system-prompt guardrails are *soft guidance only*; hard enforcement comes from tool policy + exec approvals + sandboxing + channel allowlists. So your injection scanner tests whether the soft guardrails hold, and your sandbox/policy asserts test whether the hard boundaries are actually configured to contain a successful injection.
 
-### Inspection commands your tool can call to verify posture (free wins)
-- `openclaw sandbox explain` → effective sandbox mode, scope, backend, workspace access.
-- `openclaw approvals get` / `openclaw exec-policy show` → approval + exec policy state.
+### Inspection commands your tool can call to verify posture (free wins) — **[VERIFIED 2026.6.9]**
+Both run locally (no gateway needed). All support `--json`. OpenClaw prints benign
+warnings to **stderr** (e.g. `[channels] failed to load bundled channel … imessage/telegram`);
+stdout JSON stays clean — read stdout, ignore stderr on exit 0.
 
-**→ Revised Phase 1 strategy:** Clawtest Hub configures/launches an agent, runs it, then **verifies all three layers** — is it sandboxed, is the tool policy what was expected, did it stay inside the sandbox? Don't intercept file paths from outside (absolute paths escape, and unsandboxed agents bypass it entirely). Your value is the **assert + injection-scanner + reporting layer on top of OpenClaw's own controls.**
+- **`openclaw sandbox explain --json`** → the single richest source. Real shape:
+  ```jsonc
+  {
+    "sandbox": {
+      "mode": "off",                 // off | non-main | all
+      "scope": "agent",
+      "workspaceAccess": "none",     // none | ro | rw
+      "sessionIsSandboxed": false,
+      "tools": { "allow": ["exec","process","read",...], "deny": ["browser",...] }
+    },
+    "elevated": { "enabled": true, "allowedByConfig": false }
+  }
+  ```
+  ⚠ **The tool policy lives at `sandbox.tools.allow/deny` here** — there is NO
+  `openclaw config get tools` command shaped like the old notes assumed.
+- **`openclaw exec-policy show --json`** (also `openclaw approvals get --json`) → exec approvals:
+  ```jsonc
+  { "approvalsExists": false,
+    "effectivePolicy": { "scopes": [ {
+      "scopeLabel": "tools.exec",
+      "mode": { "effective": "full" },   // full | restricted | off
+      "ask":  { "effective": "off" }     // off = never prompts (unsafe)
+    } ] } }
+  ```
+  Unsafe = `mode=full` AND `ask=off` (host exec runs with no human in the loop).
+- ⚠ **`openclaw config get <dotpath> --json` FAILS** ("Config path not found") until
+  `openclaw setup`/`onboard` has written `~/.openclaw/openclaw.json`. Don't depend on
+  config reads for posture — use `sandbox explain`'s *effective* values.
+
+**→ Revised Phase 1 strategy:** Clawtest Hub configures/launches an agent, runs it, then **verifies all three layers** — is it sandboxed, is the tool policy what was expected, did it stay inside the sandbox? Don't intercept file paths from outside (absolute paths escape, and unsandboxed agents bypass it entirely). Your value is the **assert + injection-scanner + reporting layer on top of OpenClaw's own controls.** *(Phase 1 implements exactly this read-only verification via the two commands above; default install = all three layers FAIL.)*
 
 ---
 
@@ -78,38 +113,40 @@ Run on the machine where the Gateway runs (that's where the workspace lives):
 openclaw gateway status --json
 openclaw gateway probe --json
 
-# Confirm the ACTUAL workspace path your install uses
-openclaw config get agents.defaults.workspace
-
-# Confirm the ACTUAL gateway port
-openclaw config get gateway.port
+# Check the actual safety posture (all three layers) — works WITHOUT a gateway. [VERIFIED 2026.6.9]
+openclaw sandbox explain --json     # sandbox mode + workspaceAccess + tools.allow/deny + elevated
+openclaw exec-policy show --json     # effective exec approvals (mode/ask)
 
 # Inspect the full config (token lives here under gateway.auth.token — keep secret)
-cat ~/.openclaw/openclaw.json
+cat ~/.openclaw/openclaw.json        # may not exist until `openclaw setup`/`onboard`
 
 # See your state directory contents
 ls -la ~/.openclaw
 
-# Check the actual safety posture (all three layers)
-openclaw sandbox explain
-openclaw approvals get
-openclaw config get agents.defaults.sandbox
+# NOTE: `openclaw config get <path>` only works AFTER setup writes openclaw.json,
+# and it ERRORS ("Config path not found") for paths that aren't in the file yet
+# (e.g. agents.defaults.sandbox on a fresh install). Prefer `sandbox explain` above.
+openclaw config get agents.defaults.workspace   # only after setup
+openclaw config get gateway.port                 # only after setup
 ```
 
 Record the real values returned below. **These override the defaults above.**
 
-| Setting | Default (docs) | Your install (fill in) |
+Values below filled in from the **live 2026.6.9 install on 2026-06-21** (fresh, pre-onboard).
+
+| Setting | Default (docs) | Your install (2026.6.9, verified) |
 |---|---|---|
-| Gateway WS URL | `ws://127.0.0.1:18789` | `__________` |
-| Gateway port | `18789` | `__________` |
-| Workspace path | `~/.openclaw/workspace` | `__________` |
-| State dir | `~/.openclaw` | `__________` |
-| Sandbox `mode` | **off** by default | `__________` |
-| `workspaceAccess` | `none` (when sandboxed) | `__________` |
-| Sandbox backend | `docker` | `__________` |
-| Tool policy (allow/deny) | unrestricted by default | `__________` |
-| Exec approvals | host-local state | `__________` |
-| Auth mode | token | `__________` |
+| Gateway WS URL | `ws://127.0.0.1:18789` | `ws://127.0.0.1:18789` (default; not yet running) |
+| Gateway port | `18789` | `18789` (dev profile = `19001`) |
+| Workspace path | `~/.openclaw/workspace` | `C:\Users\mohan\.openclaw\workspace` |
+| State dir | `~/.openclaw` | `C:\Users\mohan\.openclaw` ✅ |
+| Sandbox `mode` | **off** by default | **`off`** ✅ (uncontained) |
+| `workspaceAccess` | `none` (when sandboxed) | `none` ✅ |
+| Sandbox backend | `docker` | n/a (sandbox off; not reported) |
+| Tool policy (allow/deny) | unrestricted by default | ✅ `allow` includes `exec`,`process`,`read`,`write`,`edit`; `deny` = channel tools |
+| Exec approvals | host-local state | ✅ `approvalsExists=false`, `mode=full`, `ask=off` (runs w/o prompt) |
+| Auth mode | token | token (unverified; no onboard yet) |
+| `elevated` | — | ✅ `enabled=true`, `allowedByConfig=false` |
 
 ---
 
