@@ -32,6 +32,9 @@ export function liveRunner(binary = 'openclaw'): OpenclawRunner {
           return { status: 'ok', stdout: res.stdout ?? '', stderr: res.stderr ?? '' };
         }
         const stderr = res.stderr ?? '';
+        if (looksNotInstalled(stderr)) {
+          return notInstalled();
+        }
         if (isUnreachable(stderr)) {
           return {
             status: 'unreachable',
@@ -96,6 +99,16 @@ function notInstalled(): ExecOutcome {
       'The `openclaw` CLI was not found on your PATH. Install OpenClaw from https://openclaw.ai, ' +
       'or pass --from-fixture <dir> to run against recorded sample output.',
   };
+}
+
+function looksNotInstalled(stderr: string): boolean {
+  const s = stderr.toLowerCase();
+  return (
+    s.includes('not recognized') || // Windows cmd
+    s.includes('command not found') || // POSIX shell
+    s.includes('no such file') ||
+    s.includes('cannot find')
+  );
 }
 
 function isUnreachable(stderr: string): boolean {
