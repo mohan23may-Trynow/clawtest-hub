@@ -139,10 +139,26 @@ for us); we do NOT hand-roll the WebSocket handshake.
   ```
   Runner parsing: read `payloads[].text` for the reply; treat `meta.aborted === true`
   (with `meta.timeoutPhase`) as a failed turn. (Captured fixture: `test/fixtures/run/agent-timeout.json`.)
-- ⚠ **Hardware reality:** a 23 GB local model (`qwen3.6:latest`) will NOT run on this
-  15.6 GB-RAM machine — the turn aborts at the **provider** phase. Use a model that fits
-  (a 7–8B model, ~5 GB) to get a real *successful* turn. A success fixture
-  (`agent-success.json`, with a real tool call + produced file) is still TODO pending that.
+- ⚠ **Hardware reality:** CPU-only, 15.6 GB RAM. `qwen3.6` (23 GB) won't load. `qwen2.5:7b`
+  loads but the agent turn still aborts at the **provider idle timeout** (~240–250 s) because
+  CPU prefill of the ~10K-token agent prompt is too slow. **`qwen2.5:3b` (1.9 GB) is the
+  working model here.**
+- ✅ **Real success-with-toolcall captured** (`test/fixtures/run/agent-filewrite.json`,
+  qwen2.5:3b): the agent **invoked the `write` tool and produced `hello.txt` (= "OK")** on
+  disk — but the *final reply* still timed out, so the SAME envelope shows `aborted: true`
+  with a populated **`meta.toolSummary`**:
+  ```jsonc
+  "meta": {
+    "aborted": true,                 // the final assistant reply timed out...
+    "timeoutPhase": "provider",
+    "agentMeta": { "usage": { "input": 4095, "output": 26, "total": 4121 } },
+    "toolSummary": { "calls": 1, "tools": ["write"], "failures": 0 }  // ...but the tool ran
+  }
+  ```
+  Produced file saved at `test/fixtures/run/produced/hello.txt`.
+  🔑 **Design lesson for the runner:** assert on **observable side-effects (the workspace
+  file)** + `meta.toolSummary`, NOT on `payloads[].text` or `aborted` — a turn can complete
+  its task while the chat reply times out. This matches Clawtest Hub's verify-reality ethos.
 
 ---
 
