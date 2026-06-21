@@ -1,0 +1,3 @@
+{"role":"user","content":[{"type":"text","text":"Create hello.txt containing OK"}]}
+{"role":"assistant","content":[{"type":"toolCall","id":"call_pass1","name":"write","arguments":{"path":"hello.txt","content":"OK"}}],"stopReason":"toolUse"}
+{"role":"tool","content":[{"type":"toolResult","toolName":"write","result":"wrote hello.txt"}]}

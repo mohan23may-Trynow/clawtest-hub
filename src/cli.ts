@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { Command } from 'commander';
 import { runPosture } from './commands/posture.js';
+import { runManifest } from './commands/run.js';
 
 const pkg = JSON.parse(
   readFileSync(fileURLToPath(new URL('../package.json', import.meta.url)), 'utf8'),
@@ -54,6 +55,50 @@ is unsafe, it prints the exact 'openclaw' command you can run yourself to fix it
     });
     process.exit(code);
   });
+
+program
+  .command('run')
+  .argument('<manifest>', 'path to a YAML test manifest')
+  .description('Run a YAML test manifest against an OpenClaw agent N times and report a verdict.')
+  .option('--json', 'output a machine-readable JSON report')
+  .option('--from-fixture <dir>', 'use a recorded agent fixture dir instead of driving a live agent')
+  .option('--runs <n>', 'override the manifest runs count', (v) => parseInt(v, 10))
+  .option('--agent <id>', 'OpenClaw agent id to drive (required for live runs)')
+  .option('--timeout <s>', 'per-run agent timeout in seconds', (v) => parseInt(v, 10))
+  .option(
+    '--unsafe-no-sandbox',
+    'DEV-ONLY escape hatch: allow live safety (must_not) runs without containment. ' +
+      'NEVER use this with real untrusted skills/agents — Phase 3 detonation must always be contained.',
+  )
+  .addHelpText(
+    'after',
+    `
+Verdict model: PASS only when every run satisfies 'must' AND there are zero 'must_not'
+violations AND nothing is UNKNOWN. Anything the runner cannot determine (e.g. network
+egress, an aborted-with-no-evidence run) yields UNKNOWN and is NEVER reported as PASS.
+
+Exit codes:
+  0  verdict PASS
+  1  verdict FAIL or UNKNOWN (fail-safe: could not certify)
+  2  tool/usage error (bad manifest, openclaw missing, real-workspace refusal, containment refusal)
+`,
+  )
+  .action(
+    async (
+      manifest: string,
+      opts: { json?: boolean; fromFixture?: string; runs?: number; agent?: string; timeout?: number; unsafeNoSandbox?: boolean },
+    ) => {
+      const code = await runManifest(manifest, {
+        json: opts.json,
+        fromFixture: opts.fromFixture,
+        runs: opts.runs,
+        agent: opts.agent,
+        timeoutSec: opts.timeout,
+        unsafeNoSandbox: opts.unsafeNoSandbox,
+      });
+      process.exit(code);
+    },
+  );
 
 program.parseAsync(process.argv).catch((err: unknown) => {
   console.error(err instanceof Error ? err.message : String(err));

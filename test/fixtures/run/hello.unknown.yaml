@@ -1,0 +1,16 @@
+name: hello-unknown
+agent:
+  workspace: .sandbox-tmp/hello-unknown
+runs: 1
+trigger:
+  message: "Create hello.txt containing OK"
+fixtures: []
+expect:
+  must:
+    - file_contains: { path: hello.txt, text: "OK" }
+  must_not:
+    # network_egress is not observable without x86+Docker -> UNKNOWN -> never PASS (fail-safe).
+    - network_egress: "*"
+verdict:
+  must: all
+  must_not: zero_violations

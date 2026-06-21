@@ -1,0 +1,14 @@
+{
+  "payloads": [{ "text": "LLM request timed out.", "mediaUrl": null }],
+  "meta": {
+    "aborted": true,
+    "timeoutPhase": "provider",
+    "agentMeta": {
+      "sessionId": "fixture-pass",
+      "provider": "ollama",
+      "model": "qwen2.5:3b",
+      "usage": { "input": 4095, "output": 26, "total": 4121 }
+    },
+    "toolSummary": { "calls": 1, "tools": ["write"], "failures": 0 }
+  }
+}
