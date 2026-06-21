@@ -143,8 +143,8 @@ for us); we do NOT hand-roll the WebSocket handshake.
   loads but the agent turn still aborts at the **provider idle timeout** (~240–250 s) because
   CPU prefill of the ~10K-token agent prompt is too slow. **`qwen2.5:3b` (1.9 GB) is the
   working model here.**
-- ✅ **Real success-with-toolcall captured** (`test/fixtures/run/agent-filewrite.json`,
-  qwen2.5:3b): the agent **invoked the `write` tool and produced `hello.txt` (= "OK")** on
+- ✅ **Canonical real success fixture: `test/fixtures/run/agent-real-success.json`**
+  (qwen2.5:3b): the agent **invoked the `write` tool and produced `hello.txt` (= "OK")** on
   disk — but the *final reply* still timed out, so the SAME envelope shows `aborted: true`
   with a populated **`meta.toolSummary`**:
   ```jsonc
@@ -159,6 +159,20 @@ for us); we do NOT hand-roll the WebSocket handshake.
   🔑 **Design lesson for the runner:** assert on **observable side-effects (the workspace
   file)** + `meta.toolSummary`, NOT on `payloads[].text` or `aborted` — a turn can complete
   its task while the chat reply times out. This matches Clawtest Hub's verify-reality ethos.
+
+### Phase 2 runner verdict model — **[REQUIRED]**
+The runner judges each assert by the **determinable outcome**, never by `aborted` alone:
+- **PASS / FAIL** whenever the outcome is determinable from observable evidence — e.g.
+  *was the file produced? does it match? was the tool called (`meta.toolSummary.calls`)?*
+  A turn with `aborted: true` whose file + tool evidence are present is a **PASS**, not a fail.
+- **UNKNOWN** ONLY when the outcome genuinely cannot be determined (e.g. the agent never ran,
+  output unparseable, or the evidence needed for that assert is absent). Never return UNKNOWN
+  (or FAIL) *automatically* just because `aborted: true`.
+- `agent-real-success.json` is the canonical example: `aborted:true` + `toolSummary{calls:1,
+  failures:0}` + produced `hello.txt`="OK" ⇒ `file_contains` = **PASS**.
+- `agent-timeout.json` is the abort-with-no-action case: `aborted:true`, `toolSummary.calls:0`,
+  no file ⇒ `file_contains` = **FAIL** (file truly not produced), and a behavioral assert with
+  no evidence ⇒ **UNKNOWN**.
 
 ---
 
