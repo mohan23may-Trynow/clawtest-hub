@@ -1,0 +1,2 @@
+[channels] failed to load bundled channel setup entry imessage
+{"approvalsExists":true,"effectivePolicy":{"scopes":[{"scopeLabel":"tools.exec","mode":{"effective":"off"},"ask":{"effective":"on"},"security":{"effective":"restricted"}}]}}

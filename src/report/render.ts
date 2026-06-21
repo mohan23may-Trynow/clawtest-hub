@@ -42,14 +42,15 @@ export function buildJsonReport(
   };
 }
 
-/** Map an overall verdict to a process exit code (0 = PASS/WARN, 1 = FAIL). */
+/** Map an overall verdict to a process exit code. UNKNOWN is non-zero — never a clean pass. */
 export function exitCodeFor(result: PostureResult): number {
-  return result.overall === 'FAIL' ? 1 : 0;
+  return result.overall === 'FAIL' || result.overall === 'UNKNOWN' ? 1 : 0;
 }
 
 function badge(v: Verdict): string {
   if (v === 'PASS') return pc.bold(pc.green(' PASS '));
   if (v === 'WARN') return pc.bold(pc.yellow(' WARN '));
+  if (v === 'UNKNOWN') return pc.bold(pc.yellow(' UNKN '));
   return pc.bold(pc.red(' FAIL '));
 }
 
@@ -57,6 +58,8 @@ function plainSummary(v: Verdict): string {
   if (v === 'PASS') return pc.green('This agent looks contained. The three safety layers all passed.');
   if (v === 'WARN')
     return pc.yellow('This agent is mostly contained, but some safety settings are weaker than ideal.');
+  if (v === 'UNKNOWN')
+    return pc.yellow('Could NOT determine containment (unexpected/missing data). Failing safe — this is NOT a pass.');
   return pc.red('This agent is NOT contained. Do not trust it with real files until you fix the FAILs below.');
 }
 

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export type Verdict = 'PASS' | 'WARN' | 'FAIL';
+export type Verdict = 'PASS' | 'WARN' | 'UNKNOWN' | 'FAIL';
 
 /** Layer 1 — where tools run (isolation / blast radius). */
 export interface SandboxLayer {

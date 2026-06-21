@@ -17,7 +17,8 @@ export interface PostureResult {
 /** Tools that can reach the host shell — dangerous if allowed without isolation. */
 const DANGEROUS_TOOLS = ['exec', 'process', 'shell', 'bash', 'sh', 'run_command', 'terminal'];
 
-const RANK: Record<Verdict, number> = { PASS: 0, WARN: 1, FAIL: 2 };
+// FAIL (definitely not contained) outranks UNKNOWN (can't certify) outranks WARN outranks PASS.
+const RANK: Record<Verdict, number> = { PASS: 0, WARN: 1, UNKNOWN: 2, FAIL: 3 };
 
 function worst(a: Verdict, b: Verdict): Verdict {
   return RANK[a] >= RANK[b] ? a : b;
@@ -49,10 +50,11 @@ function evaluateSandbox(snap: PostureSnapshot): LayerResult {
   }
 
   if (mode !== 'non-main' && mode !== 'all') {
+    // Unexpected/absent mode — cannot certify containment. Fail safe: never call this contained.
     return {
       name: 'Sandboxing',
-      verdict: 'WARN',
-      summary: `Could not confirm a safe sandbox mode (saw "${mode}").`,
+      verdict: 'UNKNOWN',
+      summary: `Could not determine sandbox mode (saw "${mode}") — not reporting as contained.`,
       details,
       fix: 'openclaw config set agents.defaults.sandbox.mode non-main',
     };
@@ -140,6 +142,16 @@ function evaluateExecApprovals(snap: PostureSnapshot): LayerResult {
 
   const mode = exec?.modeEffective?.toLowerCase();
   const ask = exec?.askEffective?.toLowerCase();
+
+  // No determinable exec scope -> cannot certify approvals. Fail safe: UNKNOWN, never PASS.
+  if (!exec || (mode === undefined && ask === undefined)) {
+    return {
+      name: 'Exec approvals',
+      verdict: 'UNKNOWN',
+      summary: 'Could not determine exec approvals — not reporting as safe.',
+      details,
+    };
+  }
 
   // Host exec can run AND it never prompts -> nothing stands between the agent and the host.
   const execCanRun = mode === 'full' || mode === 'restricted';

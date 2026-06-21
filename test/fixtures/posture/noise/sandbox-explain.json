@@ -1,0 +1,3 @@
+[channels] failed to load bundled channel setup entry imessage
+[channels] failed to load bundled channel setup entry telegram
+{"sandbox":{"mode":"non-main","scope":"session","workspaceAccess":"none","sessionIsSandboxed":true,"tools":{"allow":["read","write"],"deny":["exec","process"]}},"elevated":{"enabled":false,"allowedByConfig":false}}
