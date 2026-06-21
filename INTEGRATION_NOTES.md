@@ -102,6 +102,48 @@ stdout JSON stays clean — read stdout, ignore stderr on exit 0.
 
 **→ Revised Phase 1 strategy:** Clawtest Hub configures/launches an agent, runs it, then **verifies all three layers** — is it sandboxed, is the tool policy what was expected, did it stay inside the sandbox? Don't intercept file paths from outside (absolute paths escape, and unsandboxed agents bypass it entirely). Your value is the **assert + injection-scanner + reporting layer on top of OpenClaw's own controls.** *(Phase 1 implements exactly this read-only verification via the two commands above; default install = all three layers FAIL.)*
 
+### Driving an agent (Phase 2) — **[VERIFIED 2026.6.9]**
+We drive agents via the official CLI (it performs the gateway WS connect + token + scopes
+for us); we do NOT hand-roll the WebSocket handshake.
+- **Command:** `openclaw agent --json --agent <id> --message "<text>" [--local] [--timeout <s>]`.
+  - A **session selector is required** (`--agent` / `--session-key` / `--session-id` / `--to`),
+    else: `No target session selected`.
+  - **Gateway mode** (no `--local`) needs credentials, else:
+    `GatewayCredentialsRequiredError: gateway agent requires credentials before opening a websocket`.
+  - **`--local`** runs embedded; needs model-provider auth, else:
+    `ProviderAuthError: No API key found ... missing-provider-auth`.
+- **Free local model via Ollama:** set env **`OLLAMA_API_KEY=<any>`** to trigger
+  auto-discovery (do NOT add a `models.providers.ollama` block — it disables discovery),
+  then `openclaw models set ollama/<tag>`. Native base `http://127.0.0.1:11434` (not `/v1`);
+  keep streaming off. Verify with `openclaw models status --json`.
+- **Isolated test agent:** `openclaw agents add <name> --non-interactive --workspace <dir>
+  --model <id> --json` → its own workspace + agentDir. Use a throwaway dir; the default `main`
+  agent's workspace IS the real `~/.openclaw/workspace`.
+- **Real `--json` output shape (observed):**
+  ```jsonc
+  {
+    "payloads": [ { "text": "<assistant reply or error text>", "mediaUrl": null } ],
+    "meta": {
+      "durationMs": 249042,
+      "aborted": true,             // true if the turn did not complete
+      "timeoutPhase": "provider",  // e.g. provider idle timeout
+      "agentMeta": { "sessionId": "...", "provider": "ollama", "model": "...", "lastCallUsage": {} },
+      "systemPromptReport": {
+        "sandbox": { "mode": "off", "sandboxed": false },
+        "tools":   { "entries": [ { "name": "write" }, { "name": "exec" }, ... ] },
+        "injectedWorkspaceFiles": [ /* AGENTS.md, SOUL.md, ... */ ]
+      },
+      "finalPromptText": "<the message sent>"
+    }
+  }
+  ```
+  Runner parsing: read `payloads[].text` for the reply; treat `meta.aborted === true`
+  (with `meta.timeoutPhase`) as a failed turn. (Captured fixture: `test/fixtures/run/agent-timeout.json`.)
+- ⚠ **Hardware reality:** a 23 GB local model (`qwen3.6:latest`) will NOT run on this
+  15.6 GB-RAM machine — the turn aborts at the **provider** phase. Use a model that fits
+  (a 7–8B model, ~5 GB) to get a real *successful* turn. A success fixture
+  (`agent-success.json`, with a real tool call + produced file) is still TODO pending that.
+
 ---
 
 ## 🔧 Commands to confirm these on YOUR machine (do this first)
