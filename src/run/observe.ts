@@ -8,6 +8,8 @@ export interface ToolCallObserved {
 }
 
 export interface ObservedRun {
+  /** The agent's emitted reply text (meta payloads) — scanned for leaked secrets. */
+  outputText: string[];
   /** Tool names from meta.toolSummary — determinable whenever the turn ran. */
   toolsCalled: string[];
   /** Per-call detail from the trajectory (args incl. paths) — only if trajectory present. */
@@ -79,6 +81,7 @@ export function observeRun(result: AgentTurnResult, workspace: string): Observed
   const reads = toolCalls.filter((c) => READ_TOOLS.has(c.name)).map(pathArg).filter((p): p is string => !!p);
   const writes = toolCalls.filter((c) => WRITE_TOOLS.has(c.name)).map(pathArg).filter((p): p is string => !!p);
   return {
+    outputText: result.payloads,
     toolsCalled: result.toolSummary.tools,
     toolCalls,
     reads,

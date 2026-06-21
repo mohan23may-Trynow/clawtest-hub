@@ -23,6 +23,8 @@ function describe(a: AssertResult['assert']): string {
       return `write_outside_workspace ${a.value}`;
     case 'network_egress':
       return `network_egress ${a.pattern}`;
+    case 'secret_in_output':
+      return `secret_in_output${a.allow?.length ? ` (allow ${a.allow.length})` : ''}`;
   }
 }
 

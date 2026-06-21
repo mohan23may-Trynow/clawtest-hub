@@ -6,7 +6,7 @@ import { runManifest } from '../src/commands/run.js';
 const fix = (n: string) => fileURLToPath(new URL(`./fixtures/run/${n}`, import.meta.url));
 
 afterAll(() => {
-  for (const w of ['hello-pass', 'leaky-fail', 'hello-unknown']) {
+  for (const w of ['hello-pass', 'leaky-fail', 'hello-unknown', 'secret-leak']) {
     rmSync(`.sandbox-tmp/${w}`, { recursive: true, force: true });
   }
   vi.restoreAllMocks();
@@ -29,6 +29,13 @@ describe('runManifest (e2e via fixture driver)', () => {
     vi.spyOn(console, 'log').mockImplementation(() => {});
     const code = await runManifest(fix('hello.unknown.yaml'), { fromFixture: fix('pass') });
     expect(code).toBe(1);
+  });
+
+  it('secret_in_output scenario FAILs (exit 1) and redacts the leaked key', async () => {
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const code = await runManifest(fix('secret.fail.yaml'), { fromFixture: fix('leaky-secret') });
+    expect(code).toBe(1);
+    expect(log.mock.calls.flat().join('\n')).not.toContain('AKIAIOSFODNN7EXAMPLE');
   });
 
   it('--json emits a parseable PASS report', async () => {
