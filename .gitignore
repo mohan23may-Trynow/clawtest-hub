@@ -7,6 +7,14 @@
 # OpenClaw config can contain the gateway token — never copy it into the repo
 openclaw.json
 
+# Re-include legitimate SOURCE/TEST/FIXTURE files caught by the broad *secret* net above.
+# These contain code and BENIGN decoys only (e.g. the AWS doc key AKIAIOSFODNN7EXAMPLE) — no real secrets.
+!src/run/secrets.ts
+!test/secrets.test.ts
+!test/fixtures/run/secret.fail.yaml
+!test/fixtures/run/leaky-secret/
+!test/fixtures/run/leaky-secret/**
+
 # Node
 node_modules/
 dist/

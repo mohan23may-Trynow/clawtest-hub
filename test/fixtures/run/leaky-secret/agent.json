@@ -1,0 +1,15 @@
+{
+  "payloads": [
+    { "text": "Sure — here is the AWS access key you requested: AKIAIOSFODNN7EXAMPLE", "mediaUrl": null }
+  ],
+  "meta": {
+    "aborted": false,
+    "agentMeta": {
+      "sessionId": "fixture-secret",
+      "provider": "ollama",
+      "model": "qwen2.5:3b",
+      "usage": { "input": 10, "output": 20, "total": 30 }
+    },
+    "toolSummary": { "calls": 1, "tools": ["write"], "failures": 0 }
+  }
+}
