@@ -1,0 +1,10 @@
+{
+  "mode": "non-main",
+  "workspaceAccess": "rw",
+  "scope": "shared",
+  "backend": "docker",
+  "network": "none",
+  "docker": {
+    "binds": ["/home/user:/host:rw"]
+  }
+}

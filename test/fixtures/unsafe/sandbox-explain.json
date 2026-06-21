@@ -1,0 +1,10 @@
+{
+  "mode": "off",
+  "workspaceAccess": "none",
+  "scope": "session",
+  "backend": "docker",
+  "network": "none",
+  "docker": {
+    "binds": []
+  }
+}

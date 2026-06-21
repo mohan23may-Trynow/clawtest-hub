@@ -1,0 +1,26 @@
+# Secrets — NEVER commit these
+.env
+.env.*
+*.token
+*secret*
+*credentials*
+# OpenClaw config can contain the gateway token — never copy it into the repo
+openclaw.json
+
+# Node
+node_modules/
+dist/
+build/
+*.log
+npm-debug.log*
+
+# Test output
+/out/
+*.report.json
+.sandbox-tmp/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
