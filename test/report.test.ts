@@ -16,15 +16,17 @@ const loc: OpenclawLocation = {
 };
 
 const failSnap: PostureSnapshot = {
-  sandbox: { mode: 'off', workspaceAccess: 'none', backend: 'docker', network: 'none', binds: [] },
-  toolPolicy: { allow: [], deny: [] },
-  approvals: { mode: 'prompt', elevated: false, autoApprove: false },
+  sandbox: { mode: 'off', scope: 'agent', workspaceAccess: 'none', sessionIsSandboxed: false },
+  toolPolicy: { allow: ['exec', 'process'], deny: [] },
+  elevated: { enabled: true, allowedByConfig: false },
+  execPolicy: { approvalsExists: false, scopes: [{ label: 'tools.exec', modeEffective: 'full', askEffective: 'off' }] },
 };
 
 const passSnap: PostureSnapshot = {
-  sandbox: { mode: 'non-main', workspaceAccess: 'none', backend: 'docker', network: 'none', binds: [] },
-  toolPolicy: { allow: ['read_file'], deny: ['exec'] },
-  approvals: { mode: 'prompt', elevated: false, autoApprove: false },
+  sandbox: { mode: 'non-main', scope: 'session', workspaceAccess: 'none', sessionIsSandboxed: true },
+  toolPolicy: { allow: ['read'], deny: ['exec', 'process'] },
+  elevated: { enabled: false, allowedByConfig: false },
+  execPolicy: { approvalsExists: true, scopes: [{ label: 'tools.exec', modeEffective: 'off', askEffective: 'on' }] },
 };
 
 describe('report', () => {

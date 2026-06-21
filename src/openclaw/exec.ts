@@ -68,8 +68,7 @@ export function liveRunner(binary = 'openclaw'): OpenclawRunner {
 export function fixtureRunner(dir: string): OpenclawRunner {
   const fileFor: Record<string, string> = {
     'sandbox explain': 'sandbox-explain.json',
-    'approvals get': 'approvals-get.json',
-    'config get tools': 'config-tools.json',
+    'exec-policy show': 'exec-policy-show.json',
   };
   return {
     async run(args: string[]): Promise<ExecOutcome> {

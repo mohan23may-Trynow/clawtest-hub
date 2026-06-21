@@ -1,4 +1,0 @@
-{
-  "allow": ["read_file", "write_file", "list_dir"],
-  "deny": ["exec", "shell", "bash"]
-}

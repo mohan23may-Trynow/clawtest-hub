@@ -1,53 +1,51 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { parseApprovals, parseSandbox, parseToolPolicy } from '../src/posture/parse.js';
+import { parseExecPolicy, parseSandboxExplain } from '../src/posture/parse.js';
 
 function fixture(name: string, file: string): string {
   return readFileSync(fileURLToPath(new URL(`./fixtures/${name}/${file}`, import.meta.url)), 'utf8');
 }
 
-describe('parseSandbox', () => {
-  it('reads the default (unsafe) install', () => {
-    const s = parseSandbox(fixture('unsafe', 'sandbox-explain.json'));
-    expect(s.mode).toBe('off');
-    expect(s.binds).toEqual([]);
+describe('parseSandboxExplain', () => {
+  it('reads the real default (unsafe) install: mode off, exec allowed, elevated enabled', () => {
+    const r = parseSandboxExplain(fixture('unsafe', 'sandbox-explain.json'));
+    expect(r.sandbox.mode).toBe('off');
+    expect(r.sandbox.sessionIsSandboxed).toBe(false);
+    expect(r.toolPolicy.allow).toContain('exec');
+    expect(r.elevated.enabled).toBe(true);
   });
 
-  it('reads docker.binds and network from either shape', () => {
-    const s = parseSandbox(fixture('edge', 'sandbox-explain.json'));
-    expect(s.mode).toBe('non-main');
-    expect(s.workspaceAccess).toBe('rw');
-    expect(s.binds).toEqual(['/home/user:/host:rw']);
+  it('reads tool policy + sandbox flags from the safe fixture', () => {
+    const r = parseSandboxExplain(fixture('safe', 'sandbox-explain.json'));
+    expect(r.sandbox.mode).toBe('non-main');
+    expect(r.sandbox.sessionIsSandboxed).toBe(true);
+    expect(r.toolPolicy.deny).toContain('exec');
   });
 
-  it('defaults a missing mode to "unknown"', () => {
-    expect(parseSandbox('{}').mode).toBe('unknown');
-  });
-});
-
-describe('parseApprovals', () => {
-  it('treats mode=auto as autoApprove even without the flag', () => {
-    const a = parseApprovals('{"mode":"auto"}');
-    expect(a.autoApprove).toBe(true);
+  it('defaults missing fields safely', () => {
+    const r = parseSandboxExplain('{}');
+    expect(r.sandbox.mode).toBe('unknown');
+    expect(r.toolPolicy.allow).toEqual([]);
+    expect(r.elevated.enabled).toBe(false);
   });
 
-  it('reads explicit booleans', () => {
-    const a = parseApprovals(fixture('edge', 'approvals-get.json'));
-    expect(a.elevated).toBe(true);
-    expect(a.autoApprove).toBe(true);
+  it('recovers JSON even when stderr noise leaks onto stdout', () => {
+    const noisy = '[channels] failed to load bundled channel\n{"sandbox":{"mode":"all"}}';
+    expect(parseSandboxExplain(noisy).sandbox.mode).toBe('all');
   });
 });
 
-describe('parseToolPolicy', () => {
-  it('returns empty arrays when nothing is set', () => {
-    const t = parseToolPolicy(fixture('unsafe', 'config-tools.json'));
-    expect(t.allow).toEqual([]);
-    expect(t.deny).toEqual([]);
+describe('parseExecPolicy', () => {
+  it('extracts effective values for the tools.exec scope', () => {
+    const r = parseExecPolicy(fixture('unsafe', 'exec-policy-show.json'));
+    const exec = r.scopes.find((s) => s.label === 'tools.exec');
+    expect(exec?.modeEffective).toBe('full');
+    expect(exec?.askEffective).toBe('off');
   });
 
-  it('reads allow/deny lists', () => {
-    const t = parseToolPolicy(fixture('safe', 'config-tools.json'));
-    expect(t.deny).toContain('exec');
+  it('reads approvalsExists', () => {
+    expect(parseExecPolicy(fixture('safe', 'exec-policy-show.json')).approvalsExists).toBe(true);
+    expect(parseExecPolicy(fixture('unsafe', 'exec-policy-show.json')).approvalsExists).toBe(false);
   });
 });

@@ -1,4 +1,4 @@
-import type { PostureSnapshot, Verdict } from './types.js';
+import type { ExecScope, PostureSnapshot, Verdict } from './types.js';
 
 export interface LayerResult {
   name: string;
@@ -15,7 +15,7 @@ export interface PostureResult {
 }
 
 /** Tools that can reach the host shell — dangerous if allowed without isolation. */
-const DANGEROUS_TOOLS = ['exec', 'shell', 'bash', 'sh', 'process', 'run_command', 'terminal'];
+const DANGEROUS_TOOLS = ['exec', 'process', 'shell', 'bash', 'sh', 'run_command', 'terminal'];
 
 const RANK: Record<Verdict, number> = { PASS: 0, WARN: 1, FAIL: 2 };
 
@@ -24,22 +24,18 @@ function worst(a: Verdict, b: Verdict): Verdict {
 }
 
 export function evaluatePosture(snap: PostureSnapshot): PostureResult {
-  const sandbox = evaluateSandbox(snap);
-  const toolPolicy = evaluateToolPolicy(snap);
-  const approvals = evaluateApprovals(snap);
-  const layers = [sandbox, toolPolicy, approvals];
+  const layers = [evaluateSandbox(snap), evaluateToolPolicy(snap), evaluateExecApprovals(snap)];
   const overall = layers.reduce<Verdict>((acc, l) => worst(acc, l.verdict), 'PASS');
   return { overall, layers };
 }
 
 function evaluateSandbox(snap: PostureSnapshot): LayerResult {
-  const { mode, workspaceAccess, scope, backend, network, binds } = snap.sandbox;
+  const { mode, scope, workspaceAccess, sessionIsSandboxed } = snap.sandbox;
   const details: string[] = [
     `mode: ${mode}`,
-    `workspaceAccess: ${workspaceAccess ?? 'unknown'}`,
     `scope: ${scope ?? 'unknown'}`,
-    `backend: ${backend ?? 'unknown'}`,
-    `network: ${network ?? 'unknown'}`,
+    `workspaceAccess: ${workspaceAccess ?? 'unknown'}`,
+    `sessionIsSandboxed: ${sessionIsSandboxed ?? 'unknown'}`,
   ];
 
   if (mode === 'off') {
@@ -62,21 +58,15 @@ function evaluateSandbox(snap: PostureSnapshot): LayerResult {
     };
   }
 
-  // mode is non-main or all: start from PASS and downgrade on weakening factors.
   let verdict: Verdict = 'PASS';
   const notes: string[] = [];
-
   if (workspaceAccess === 'rw') {
     verdict = worst(verdict, 'WARN');
     notes.push('host workspace is mounted read/write (rw) into the sandbox');
   }
-  if (binds.length > 0) {
+  if (sessionIsSandboxed === false) {
     verdict = worst(verdict, 'WARN');
-    notes.push(`docker.binds mount host paths into the sandbox (pierces isolation): ${binds.join(', ')}`);
-  }
-  if ((network ?? '').toLowerCase() === 'host') {
-    verdict = worst(verdict, 'FAIL');
-    notes.push('container uses the host network');
+    notes.push('this session reports it is NOT sandboxed despite the mode');
   }
 
   return {
@@ -86,7 +76,7 @@ function evaluateSandbox(snap: PostureSnapshot): LayerResult {
       verdict === 'PASS'
         ? `Sandboxed (mode: ${mode}). Tools run in an isolated environment.`
         : `Sandboxed (mode: ${mode}), but isolation is weakened.`,
-    details: [...details, ...notes.map((n) => `⚠ ${n}`)],
+    details: [...details, ...notes.map((n) => `! ${n}`)],
   };
 }
 
@@ -94,65 +84,91 @@ function evaluateToolPolicy(snap: PostureSnapshot): LayerResult {
   const { allow, deny } = snap.toolPolicy;
   const sandboxOff = snap.sandbox.mode === 'off';
   const details = [
-    `allow: ${allow.length ? allow.join(', ') : '(none set)'}`,
-    `deny: ${deny.length ? deny.join(', ') : '(none set)'}`,
+    `allow (${allow.length}): ${allow.length ? allow.join(', ') : '(none)'}`,
+    `deny (${deny.length}): ${deny.length ? deny.join(', ') : '(none)'}`,
   ];
-
-  const unrestricted = allow.length === 0 && deny.length === 0;
-  if (unrestricted) {
-    return {
-      name: 'Tool policy',
-      verdict: sandboxOff ? 'FAIL' : 'WARN',
-      summary: 'No tool policy configured — every tool is available to the agent.',
-      details,
-      fix: 'openclaw config set tools.deny \'["exec","shell"]\'',
-    };
-  }
 
   const dangerousAllowed = allow.filter(
     (t) => DANGEROUS_TOOLS.includes(t.toLowerCase()) && !deny.includes(t),
   );
+
   if (dangerousAllowed.length > 0) {
     return {
       name: 'Tool policy',
       verdict: sandboxOff ? 'FAIL' : 'WARN',
-      summary: `Host-reaching tools are allowed: ${dangerousAllowed.join(', ')}.`,
+      summary: sandboxOff
+        ? `Host-reaching tools run on your host: ${dangerousAllowed.join(', ')}.`
+        : `Host-reaching tools are allowed (contained by the sandbox): ${dangerousAllowed.join(', ')}.`,
       details,
-      fix: `openclaw config set tools.deny '${JSON.stringify(dangerousAllowed)}'`,
+      fix: `openclaw config set tools.sandbox.tools.deny '${JSON.stringify(dangerousAllowed)}'`,
+    };
+  }
+
+  if (allow.length === 0 && deny.length === 0) {
+    return {
+      name: 'Tool policy',
+      verdict: sandboxOff ? 'FAIL' : 'WARN',
+      summary: 'No tool policy reported — every tool may be available to the agent.',
+      details,
+      fix: "openclaw config set tools.sandbox.tools.deny '[\"exec\",\"process\"]'",
     };
   }
 
   return {
     name: 'Tool policy',
     verdict: 'PASS',
-    summary: 'A tool policy is in place (a denied tool cannot be re-enabled by /exec).',
+    summary: 'No host-reaching tools are allowed (a denied tool cannot be re-enabled by /exec).',
     details,
   };
 }
 
-function evaluateApprovals(snap: PostureSnapshot): LayerResult {
-  const { mode, elevated, autoApprove } = snap.approvals;
+function findExecScope(scopes: ExecScope[]): ExecScope | undefined {
+  return scopes.find((s) => s.label === 'tools.exec') ?? scopes[0];
+}
+
+function evaluateExecApprovals(snap: PostureSnapshot): LayerResult {
+  const exec = findExecScope(snap.execPolicy.scopes);
+  const { enabled, allowedByConfig } = snap.elevated;
   const details = [
-    `mode: ${mode ?? 'unknown'}`,
-    `elevated: ${elevated}`,
-    `autoApprove: ${autoApprove}`,
-    'note: effective policy is the stricter of config and host-local approvals',
+    `approvals file exists: ${snap.execPolicy.approvalsExists}`,
+    `exec mode: ${exec?.modeEffective ?? 'unknown'}`,
+    `exec ask: ${exec?.askEffective ?? 'unknown'}`,
+    `elevated.enabled: ${enabled}`,
+    `elevated.allowedByConfig: ${allowedByConfig}`,
+    'note: effective policy is the stricter of requested config and host-local approvals',
   ];
 
-  if (elevated || autoApprove) {
+  const mode = exec?.modeEffective?.toLowerCase();
+  const ask = exec?.askEffective?.toLowerCase();
+
+  // Host exec can run AND it never prompts -> nothing stands between the agent and the host.
+  const execCanRun = mode === 'full' || mode === 'restricted';
+  const neverAsks = ask === 'off';
+
+  if (execCanRun && neverAsks) {
     return {
       name: 'Exec approvals',
       verdict: 'FAIL',
-      summary: 'Host exec is auto-approved/elevated — no human in the loop before a command runs.',
+      summary: 'Host exec can run without ever prompting — no human in the loop.',
       details,
-      fix: 'openclaw approvals reset',
+      fix: 'openclaw exec-policy preset cautious',
+    };
+  }
+
+  if (allowedByConfig) {
+    return {
+      name: 'Exec approvals',
+      verdict: 'WARN',
+      summary: 'Elevated host exec is allowed by config; verify approvals are intended.',
+      details,
+      fix: 'openclaw exec-policy preset cautious',
     };
   }
 
   return {
     name: 'Exec approvals',
     verdict: 'PASS',
-    summary: 'Host exec requires explicit approval.',
+    summary: 'Host exec requires explicit approval (or is disabled).',
     details,
   };
 }

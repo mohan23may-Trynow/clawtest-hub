@@ -1,0 +1,20 @@
+{
+  "configPath": "C:\\Users\\mohan\\.openclaw\\openclaw.json",
+  "approvalsPath": "C:\\Users\\mohan\\.openclaw\\exec-approvals.json",
+  "approvalsExists": true,
+  "effectivePolicy": {
+    "note": "Effective exec policy is the host approvals file intersected with requested tools.exec policy.",
+    "scopes": [
+      {
+        "scopeLabel": "tools.exec",
+        "configPath": "tools.exec",
+        "host": { "requested": "auto", "requestedSource": "host approvals file" },
+        "mode": { "requested": "full", "effective": "full", "note": "requested mode applies" },
+        "security": { "requested": "full", "host": "full", "effective": "full" },
+        "ask": { "requested": "off", "host": "off", "effective": "off", "note": "requested ask applies" },
+        "askFallback": { "effective": "deny", "source": "OpenClaw default (deny)" },
+        "runtimeApprovalsSource": "local-file"
+      }
+    ]
+  }
+}

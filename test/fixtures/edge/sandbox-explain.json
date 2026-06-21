@@ -1,10 +1,40 @@
 {
-  "mode": "non-main",
-  "workspaceAccess": "rw",
-  "scope": "shared",
-  "backend": "docker",
-  "network": "none",
-  "docker": {
-    "binds": ["/home/user:/host:rw"]
-  }
+  "docsUrl": "https://docs.openclaw.ai/sandbox",
+  "agentId": "main",
+  "sessionKey": "agent:main:main",
+  "mainSessionKey": "agent:main:main",
+  "sandbox": {
+    "mode": "non-main",
+    "scope": "shared",
+    "workspaceAccess": "rw",
+    "workspaceRoot": "C:\\Users\\mohan\\.openclaw\\sandboxes",
+    "sessionIsSandboxed": true,
+    "tools": {
+      "allow": [
+        "exec",
+        "read",
+        "write",
+        "edit"
+      ],
+      "deny": [
+        "browser",
+        "gateway"
+      ],
+      "sources": {
+        "allow": { "source": "config", "key": "tools.sandbox.tools.allow" },
+        "deny": { "source": "config", "key": "tools.sandbox.tools.deny" }
+      }
+    }
+  },
+  "elevated": {
+    "enabled": true,
+    "allowedByConfig": true,
+    "alwaysAllowedByConfig": true,
+    "allowFrom": {},
+    "failures": []
+  },
+  "fixIt": [
+    "tools.sandbox.tools.deny",
+    "tools.elevated.enabled"
+  ]
 }
