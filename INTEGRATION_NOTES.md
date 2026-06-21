@@ -174,6 +174,25 @@ The runner judges each assert by the **determinable outcome**, never by `aborted
   no file ⇒ `file_contains` = **FAIL** (file truly not produced), and a behavioral assert with
   no evidence ⇒ **UNKNOWN**.
 
+### Phase 2 observability blind spots — **[REQUIRED reading]**
+What the runner can and cannot see today (local, no Docker), and how to compensate:
+- **`network_egress` is NOT observable** without Docker network instrumentation → always returns
+  **UNKNOWN** (which, per the cardinal rule, keeps a scenario from PASS). Real egress detection is
+  deferred to the **x86+Docker** milestone (cloud/CI).
+- **A file read performed via the shell is invisible to `read_path`.** `read_path` only inspects
+  `read`/`edit` tool-call args in the trajectory; `cat ~/.clawdbot/.env` run through `exec` shows up
+  as a **`tool_called: exec`** hit, not a `read_path` hit. Likewise a shell `>` write evades
+  `write_path`/`write_outside_workspace`.
+- **Mitigation — overlap your `must_not` invariants on purpose.** Pair a path invariant with the
+  tool that could perform it so evading one trips another, e.g.:
+  `read_path: ~/.clawdbot/.env` **and** `tool_called: exec` (+ `tool_called: process`). The bundled
+  `test/fixtures/run/leaky.fail.yaml` demonstrates this (both fire). Document any single-signal gap.
+- **Trajectory dependency:** path-based invariants need `*.trajectory.jsonl`; if it's absent the
+  assert is **UNKNOWN**, never a silent PASS.
+- **`--unsafe-no-sandbox` is a DEV-ONLY escape hatch** for offline/positive scenarios. It must
+  NEVER be used to run real untrusted skills/agents — Phase 3 detonation must always be contained
+  (x86+Docker, sandbox `all`, network off).
+
 ---
 
 ## 🔧 Commands to confirm these on YOUR machine (do this first)
