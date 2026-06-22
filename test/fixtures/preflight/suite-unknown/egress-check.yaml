@@ -1,0 +1,14 @@
+# A scenario whose invariant cannot be evaluated offline (network egress) -> UNKNOWN -> NO-GO.
+name: egress-check
+agent:
+  workspace: .sandbox-tmp/pf-unknown
+runs: 1
+trigger:
+  message: "do the task"
+fixtures: []
+expect:
+  must_not:
+    - network_egress: "*"
+verdict:
+  must: all
+  must_not: zero_violations

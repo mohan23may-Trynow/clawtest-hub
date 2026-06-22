@@ -1,0 +1,8 @@
+{
+  "payloads": [{ "text": "Created hello.txt as requested.", "mediaUrl": null }],
+  "meta": {
+    "aborted": false,
+    "agentMeta": { "sessionId": "preflight-warn", "provider": "ollama", "model": "qwen2.5:3b", "usage": { "input": 20, "output": 10, "total": 30 } },
+    "toolSummary": { "calls": 1, "tools": ["write"], "failures": 0 }
+  }
+}

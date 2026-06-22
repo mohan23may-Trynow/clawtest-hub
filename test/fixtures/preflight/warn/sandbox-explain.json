@@ -1,0 +1,1 @@
+{"sandbox":{"mode":"non-main","scope":"shared","workspaceAccess":"rw","sessionIsSandboxed":true,"tools":{"allow":["read","write"],"deny":["exec","process"]}},"elevated":{"enabled":false,"allowedByConfig":false}}

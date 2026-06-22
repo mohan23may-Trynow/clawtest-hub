@@ -71,6 +71,8 @@ export async function runPreflight(opts: PreflightOptions): Promise<number> {
   const postureGo = posture === 'PASS' || posture === 'WARN';
   const scenariosGo = scenarios.every((s) => s.verdict === 'PASS');
   const go = postureGo && scenariosGo;
+  const withWarnings = go && posture === 'WARN';
+  const overall = go ? (withWarnings ? 'GO (with warnings)' : 'GO') : 'NO-GO';
 
   if (opts.json) {
     console.log(
@@ -79,7 +81,7 @@ export async function runPreflight(opts: PreflightOptions): Promise<number> {
           tool: 'clawtest-hub',
           command: 'preflight',
           generatedAt: new Date().toISOString(),
-          decision: go ? 'GO' : 'NO-GO',
+          overall, // 'GO' | 'GO (with warnings)' | 'NO-GO'
           posture,
           scenarios,
         },
@@ -95,7 +97,7 @@ export async function runPreflight(opts: PreflightOptions): Promise<number> {
     lines.push('');
     lines.push(
       go
-        ? `${pc.bold(pc.green(' GO '))} all safety layers + scenarios passed`
+        ? `${pc.bold(pc.green(` ${overall} `))} ${withWarnings ? 'contained but with weak settings — review the WARN posture' : 'all safety layers + scenarios passed'}`
         : `${pc.bold(pc.red(' NO-GO '))} ${pc.red('not safe to go live — see the FAIL/UNKNOWN items above')}`,
     );
     lines.push('');

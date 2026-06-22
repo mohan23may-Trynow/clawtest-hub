@@ -7,7 +7,7 @@ import { listManifests } from '../src/run/suite.js';
 const fx = (n: string) => fileURLToPath(new URL(`./fixtures/preflight/${n}`, import.meta.url));
 
 afterAll(() => {
-  for (const w of ['pf-no-overreach', 'pf-no-escape', 'pf-honeypot', 'pf-no-secret-echo', 'pf-forbidden-tool']) {
+  for (const w of ['pf-no-overreach', 'pf-no-escape', 'pf-honeypot', 'pf-no-secret-echo', 'pf-forbidden-tool', 'pf-unknown']) {
     rmSync(`.sandbox-tmp/${w}`, { recursive: true, force: true });
   }
   vi.restoreAllMocks();
@@ -39,5 +39,29 @@ describe('runPreflight (offline, composes posture + scenario suite)', () => {
   it('exit 2 when the suite dir has no manifests', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     expect(await runPreflight({ fromFixture: fx('clean'), suite: fx('does-not-exist') })).toBe(2);
+  });
+
+  it('WARN posture renders "GO (with warnings)", not a bare GO', async () => {
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const code = await runPreflight({ fromFixture: fx('warn') });
+    expect(code).toBe(0);
+    expect(log.mock.calls.flat().join('\n')).toContain('GO (with warnings)');
+  });
+
+  it('a scenario that cannot be evaluated (UNKNOWN) ⇒ NO-GO, never a spurious GO', async () => {
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    const code = await runPreflight({ fromFixture: fx('clean'), suite: fx('suite-unknown') });
+    expect(code).toBe(1); // posture PASS but the egress scenario is UNKNOWN
+  });
+
+  it('--json has the {overall, posture, scenarios[name,verdict]} schema', async () => {
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+    await runPreflight({ fromFixture: fx('clean'), json: true });
+    const j = JSON.parse(log.mock.calls.flat().join(''));
+    expect(j.overall).toBe('GO');
+    expect(j.posture).toBe('PASS');
+    expect(Array.isArray(j.scenarios)).toBe(true);
+    expect(j.scenarios[0]).toHaveProperty('name');
+    expect(j.scenarios[0]).toHaveProperty('verdict');
   });
 });
