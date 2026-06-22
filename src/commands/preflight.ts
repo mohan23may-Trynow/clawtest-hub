@@ -37,20 +37,21 @@ function badge(v: string): string {
  */
 export async function runPreflight(opts: PreflightOptions): Promise<number> {
   // 1) Safety posture
-  const g = await gatherPosture({ stateDir: opts.stateDir, fromFixture: opts.fromFixture });
-  if (g.status !== 'ok') {
-    console.error(`preflight: cannot determine safety posture — ${g.message}`);
+  // On a usage/exit-2 error, emit a clear error OBJECT (in JSON mode) instead of half a payload.
+  const fail = (message: string): number => {
+    if (opts.json) console.log(JSON.stringify({ tool: 'clawtest-hub', command: 'preflight', error: message }, null, 2));
+    else console.error(`preflight: ${message}`);
     return 2;
-  }
+  };
+
+  const g = await gatherPosture({ stateDir: opts.stateDir, fromFixture: opts.fromFixture });
+  if (g.status !== 'ok') return fail(`cannot determine safety posture — ${g.message}`);
   const posture = g.result.overall;
 
   // 2) Scenario suite
   const suiteDir = opts.suite ?? DEFAULT_SUITE;
   const manifests = listManifests(suiteDir);
-  if (manifests.length === 0) {
-    console.error(`preflight: no manifests found in suite dir: ${suiteDir}`);
-    return 2;
-  }
+  if (manifests.length === 0) return fail(`no manifests found in suite dir: ${suiteDir}`);
 
   const scenarios: ScenarioOutcome[] = [];
   for (const m of manifests) {
@@ -60,10 +61,7 @@ export async function runPreflight(opts: PreflightOptions): Promise<number> {
       timeoutSec: opts.timeoutSec,
       unsafeNoSandbox: opts.unsafeNoSandbox,
     });
-    if (!r.ok) {
-      console.error(`preflight: could not run scenario ${basename(m)} — ${r.message}`);
-      return 2;
-    }
+    if (!r.ok) return fail(`could not run scenario ${basename(m)} — ${r.message}`);
     scenarios.push({ name: r.manifest.name, verdict: r.scenario.verdict, reason: r.scenario.reason });
   }
 
@@ -72,7 +70,9 @@ export async function runPreflight(opts: PreflightOptions): Promise<number> {
   const scenariosGo = scenarios.every((s) => s.verdict === 'PASS');
   const go = postureGo && scenariosGo;
   const withWarnings = go && posture === 'WARN';
-  const overall = go ? (withWarnings ? 'GO (with warnings)' : 'GO') : 'NO-GO';
+  const overall = go ? 'GO' : 'NO-GO'; // strict machine enum; "(with warnings)" is text-report only
+  // Why a GO had caveats (WARN posture layers). Future --strict: non-empty warnings flip GO -> NO-GO.
+  const warnings = g.result.layers.filter((l) => l.verdict === 'WARN').map((l) => `${l.name}: ${l.summary}`);
 
   if (opts.json) {
     console.log(
@@ -81,7 +81,8 @@ export async function runPreflight(opts: PreflightOptions): Promise<number> {
           tool: 'clawtest-hub',
           command: 'preflight',
           generatedAt: new Date().toISOString(),
-          overall, // 'GO' | 'GO (with warnings)' | 'NO-GO'
+          overall, // 'GO' | 'NO-GO'
+          warnings, // string[] — populated when overall is GO but the posture is weak
           posture,
           scenarios,
         },
@@ -97,7 +98,7 @@ export async function runPreflight(opts: PreflightOptions): Promise<number> {
     lines.push('');
     lines.push(
       go
-        ? `${pc.bold(pc.green(` ${overall} `))} ${withWarnings ? 'contained but with weak settings — review the WARN posture' : 'all safety layers + scenarios passed'}`
+        ? `${pc.bold(pc.green(` ${withWarnings ? 'GO (with warnings)' : 'GO'} `))} ${withWarnings ? 'contained but with weak settings — review the WARN posture' : 'all safety layers + scenarios passed'}`
         : `${pc.bold(pc.red(' NO-GO '))} ${pc.red('not safe to go live — see the FAIL/UNKNOWN items above')}`,
     );
     lines.push('');

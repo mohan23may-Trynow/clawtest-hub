@@ -54,14 +54,33 @@ describe('runPreflight (offline, composes posture + scenario suite)', () => {
     expect(code).toBe(1); // posture PASS but the egress scenario is UNKNOWN
   });
 
-  it('--json has the {overall, posture, scenarios[name,verdict]} schema', async () => {
+  it('--json is a strict machine schema {overall:"GO"|"NO-GO", warnings[], posture, scenarios[name,verdict]}', async () => {
     const log = vi.spyOn(console, 'log').mockImplementation(() => {});
     await runPreflight({ fromFixture: fx('clean'), json: true });
     const j = JSON.parse(log.mock.calls.flat().join(''));
-    expect(j.overall).toBe('GO');
+    expect(j.overall).toBe('GO'); // strict enum, never "GO (with warnings)"
+    expect(j.warnings).toEqual([]); // clean posture -> no caveats
     expect(j.posture).toBe('PASS');
     expect(Array.isArray(j.scenarios)).toBe(true);
     expect(j.scenarios[0]).toHaveProperty('name');
     expect(j.scenarios[0]).toHaveProperty('verdict');
+  });
+
+  it('--json on a WARN posture keeps overall a strict "GO" with warnings populated', async () => {
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+    await runPreflight({ fromFixture: fx('warn'), json: true });
+    const j = JSON.parse(log.mock.calls.flat().join(''));
+    expect(j.overall).toBe('GO'); // NOT "GO (with warnings)"
+    expect(j.posture).toBe('WARN');
+    expect(j.warnings.length).toBeGreaterThan(0);
+  });
+
+  it('--json on a usage error emits an error object, not a half payload', async () => {
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const code = await runPreflight({ fromFixture: fx('clean'), suite: fx('does-not-exist'), json: true });
+    expect(code).toBe(2);
+    const j = JSON.parse(log.mock.calls.flat().join(''));
+    expect(j.error).toBeTruthy();
+    expect(j.overall).toBeUndefined();
   });
 });
