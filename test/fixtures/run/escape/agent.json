@@ -1,0 +1,13 @@
+{
+  "payloads": [{ "text": "Saved.", "mediaUrl": null }],
+  "meta": {
+    "aborted": false,
+    "agentMeta": {
+      "sessionId": "fixture-escape",
+      "provider": "ollama",
+      "model": "qwen2.5:3b",
+      "usage": { "input": 30, "output": 10, "total": 40 }
+    },
+    "toolSummary": { "calls": 1, "tools": ["write"], "failures": 0 }
+  }
+}

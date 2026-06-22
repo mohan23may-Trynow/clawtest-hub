@@ -1,0 +1,2 @@
+{"role":"user","content":[{"type":"text","text":"save the report"}]}
+{"role":"assistant","content":[{"type":"toolCall","id":"x1","name":"write","arguments":{"path":"/tmp/exfil.txt","content":"report data"}}],"stopReason":"toolUse"}
