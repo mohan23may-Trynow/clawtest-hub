@@ -1,7 +1,7 @@
-import { locateOpenclaw } from '../openclaw/locate.js';
-import { fixtureRunner, liveRunner, type ExecOutcome, type OpenclawRunner } from '../openclaw/exec.js';
+import { locateOpenclaw, type OpenclawLocation } from '../openclaw/locate.js';
+import { fixtureRunner, liveRunner, type OpenclawRunner } from '../openclaw/exec.js';
 import { parseExecPolicy, parseSandboxExplain } from '../posture/parse.js';
-import { evaluatePosture } from '../posture/evaluate.js';
+import { evaluatePosture, type PostureResult } from '../posture/evaluate.js';
 import type { PostureSnapshot } from '../posture/types.js';
 import { buildJsonReport, exitCodeFor, renderHuman } from '../report/render.js';
 
@@ -11,55 +11,50 @@ export interface PostureOptions {
   fromFixture?: string;
 }
 
-/**
- * Phase 1 engine: inspect an OpenClaw install and judge its safety posture.
- * Returns the process exit code (0 PASS/WARN, 1 FAIL, 2 tool/usage error).
- *
- * Sources (verified against OpenClaw 2026.6.9):
- *   - `openclaw sandbox explain --json` -> sandbox mode + tool policy + elevation
- *   - `openclaw exec-policy show --json` -> effective exec approvals
- */
-export async function runPosture(opts: PostureOptions): Promise<number> {
+export type PostureGather =
+  | { status: 'ok'; result: PostureResult; loc: OpenclawLocation; snapshot: PostureSnapshot }
+  | { status: 'unavailable'; message: string };
+
+/** Inspect + evaluate the safety posture. No printing/exit — returns the result for composition. */
+export async function gatherPosture(opts: PostureOptions): Promise<PostureGather> {
   const loc = locateOpenclaw({ stateDir: opts.stateDir });
   const runner: OpenclawRunner = opts.fromFixture ? fixtureRunner(opts.fromFixture) : liveRunner();
 
   const sandboxOut = await runner.run(['sandbox', 'explain', '--json']);
-  if (sandboxOut.status !== 'ok') return reportUnavailable(sandboxOut);
-
+  if (sandboxOut.status !== 'ok') return unavailable(sandboxOut);
   const execPolicyOut = await runner.run(['exec-policy', 'show', '--json']);
-  if (execPolicyOut.status !== 'ok') return reportUnavailable(execPolicyOut);
+  if (execPolicyOut.status !== 'ok') return unavailable(execPolicyOut);
 
-  let snapshot: PostureSnapshot;
   try {
     const explain = parseSandboxExplain(sandboxOut.stdout);
-    snapshot = {
+    const snapshot: PostureSnapshot = {
       sandbox: explain.sandbox,
       toolPolicy: explain.toolPolicy,
       elevated: explain.elevated,
       execPolicy: parseExecPolicy(execPolicyOut.stdout),
     };
+    return { status: 'ok', result: evaluatePosture(snapshot), loc, snapshot };
   } catch (err) {
-    console.error(
-      `Could not understand OpenClaw's output: ${err instanceof Error ? err.message : String(err)}`,
-    );
-    return 2;
+    return {
+      status: 'unavailable',
+      message: `Could not understand OpenClaw's output: ${err instanceof Error ? err.message : String(err)}`,
+    };
   }
-
-  const result = evaluatePosture(snapshot);
-
-  if (opts.json) {
-    console.log(JSON.stringify(buildJsonReport(loc, result, snapshot), null, 2));
-  } else {
-    console.log(renderHuman(loc, result, snapshot));
-  }
-
-  return exitCodeFor(result);
 }
 
-function reportUnavailable(outcome: Exclude<ExecOutcome, { status: 'ok' }>): number {
-  console.error(outcome.message);
-  if ('stderr' in outcome && outcome.stderr) {
-    console.error(outcome.stderr.trim());
+/** Phase 1 `posture` command: gather, print the report, return the exit code. */
+export async function runPosture(opts: PostureOptions): Promise<number> {
+  const g = await gatherPosture(opts);
+  if (g.status !== 'ok') {
+    console.error(g.message);
+    return 2;
   }
-  return 2;
+  if (opts.json) console.log(JSON.stringify(buildJsonReport(g.loc, g.result, g.snapshot), null, 2));
+  else console.log(renderHuman(g.loc, g.result, g.snapshot));
+  return exitCodeFor(g.result);
+}
+
+function unavailable(outcome: { message: string; stderr?: string }): PostureGather {
+  const extra = outcome.stderr?.trim() ? `\n${outcome.stderr.trim()}` : '';
+  return { status: 'unavailable', message: `${outcome.message}${extra}` };
 }

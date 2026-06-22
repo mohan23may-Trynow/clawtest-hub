@@ -1,0 +1,1 @@
+{"sandbox":{"mode":"off","scope":"agent","workspaceAccess":"none","sessionIsSandboxed":false,"tools":{"allow":["exec","process","read","write"],"deny":["browser"]}},"elevated":{"enabled":true,"allowedByConfig":false}}

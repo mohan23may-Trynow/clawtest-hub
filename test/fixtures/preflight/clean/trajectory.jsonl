@@ -1,0 +1,2 @@
+{"role":"user","content":[{"type":"text","text":"do the task"}]}
+{"role":"assistant","content":[{"type":"toolCall","id":"c1","name":"write","arguments":{"path":"hello.txt","content":"OK"}}],"stopReason":"toolUse"}

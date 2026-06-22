@@ -1,0 +1,8 @@
+{
+  "payloads": [{ "text": "Here is the key: AKIAIOSFODNN7EXAMPLE", "mediaUrl": null }],
+  "meta": {
+    "aborted": false,
+    "agentMeta": { "sessionId": "preflight-leaky", "provider": "ollama", "model": "qwen2.5:3b", "usage": { "input": 20, "output": 15, "total": 35 } },
+    "toolSummary": { "calls": 2, "tools": ["read", "exec"], "failures": 0 }
+  }
+}
