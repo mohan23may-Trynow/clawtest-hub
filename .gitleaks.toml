@@ -1,0 +1,16 @@
+# gitleaks config for clawtest-hub
+# Uses the default ruleset, plus an allowlist for the INTENTIONAL benign decoys used by the
+# test fixtures (these are not real secrets):
+#   - AKIAIOSFODNN7EXAMPLE      : AWS's own public documentation example key (non-functional)
+#   - sk-TESTONLY…EXAMPLE       : a fake OpenAI-style token used only to exercise secret_in_output
+title = "clawtest-hub"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Intentional benign decoys in test fixtures — not real secrets."
+regexes = [
+  '''AKIAIOSFODNN7EXAMPLE''',
+  '''sk-TESTONLY[A-Za-z0-9]*EXAMPLE''',
+]
