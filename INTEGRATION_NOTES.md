@@ -201,6 +201,12 @@ What the runner can and cannot see today (local, no Docker), and how to compensa
   **closes the `read_path` shell blind spot** (`cat ~/.ssh/id_rsa` trips this even though it evades
   `read_path`). Built-in list + manifest `paths:`/`allow:` (allow whitelists a more-specific subpath).
   Needs the trajectory → **UNKNOWN** without it. Pair it with `read_path` for defense in depth.
+  Matching is **path-boundary-aware** (not naive substring): `~/.aws` matches `cat ~/.aws/creds`
+  but not `~/.aws-backup`/`/var/etc/passwd-notes`; `allow` is a backstop, not the primary defense.
+  The exec-command scan is **best-effort** — it catches naive path references in a command string,
+  NOT obfuscated/variable-indirected access (`cat $SECRET_PATH`); `tool_called: exec`/`process` is
+  the backstop that flags shell use regardless. **Known gap:** the default list is Unix-centric
+  (`~`/POSIX); Windows (`%USERPROFILE%\.aws`, AppData) and some macOS paths need manifest `paths:`.
 - **`--unsafe-no-sandbox` is a DEV-ONLY escape hatch** for offline/positive scenarios. It must
   NEVER be used to run real untrusted skills/agents — Phase 3 detonation must always be contained
   (x86+Docker, sandbox `all`, network off).

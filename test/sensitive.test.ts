@@ -17,6 +17,12 @@ describe('matchSensitive', () => {
     expect(matchSensitive([{ label: 'write leads.csv', text: 'leads.csv' }])).toHaveLength(0);
   });
 
+  it('is boundary-aware: ignores incidental substrings', () => {
+    expect(matchSensitive([{ label: 'exec', text: 'rm -rf ~/.aws-backup' }])).toHaveLength(0);
+    expect(matchSensitive([{ label: 'read', text: '/var/etc/passwd-notes' }])).toHaveLength(0);
+    expect(matchSensitive([{ label: 'exec', text: 'echo configuring aws credentials' }])).toHaveLength(0);
+  });
+
   it('allow whitelists a more-specific path while the parent stays sensitive', () => {
     // touching ~/.openclaw/workspace is allowed...
     expect(
