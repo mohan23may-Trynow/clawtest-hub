@@ -1,5 +1,18 @@
 import { describe, expect, it } from 'vitest';
-import { matchSensitive } from '../src/run/sensitive.js';
+import { DEFAULT_SENSITIVE_PATHS, matchSensitive } from '../src/run/sensitive.js';
+
+describe('DEFAULT_SENSITIVE_PATHS (platform-aware)', () => {
+  it('includes common home-based paths plus this platform\'s host locations', () => {
+    expect(DEFAULT_SENSITIVE_PATHS).toContain('~/.ssh');
+    if (process.platform === 'win32') {
+      expect(DEFAULT_SENSITIVE_PATHS.some((p) => p.includes('appdata'))).toBe(true);
+    } else if (process.platform === 'darwin') {
+      expect(DEFAULT_SENSITIVE_PATHS.some((p) => p.toLowerCase().includes('library'))).toBe(true);
+    } else {
+      expect(DEFAULT_SENSITIVE_PATHS).toContain('/etc/passwd');
+    }
+  });
+});
 
 describe('matchSensitive', () => {
   it('flags a sensitive read path', () => {

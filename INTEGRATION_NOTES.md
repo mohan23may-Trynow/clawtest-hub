@@ -205,8 +205,9 @@ What the runner can and cannot see today (local, no Docker), and how to compensa
   but not `~/.aws-backup`/`/var/etc/passwd-notes`; `allow` is a backstop, not the primary defense.
   The exec-command scan is **best-effort** — it catches naive path references in a command string,
   NOT obfuscated/variable-indirected access (`cat $SECRET_PATH`); `tool_called: exec`/`process` is
-  the backstop that flags shell use regardless. **Known gap:** the default list is Unix-centric
-  (`~`/POSIX); Windows (`%USERPROFILE%\.aws`, AppData) and some macOS paths need manifest `paths:`.
+  the backstop that flags shell use regardless. The default list is **platform-aware** (common
+  `~`-based paths + Windows AppData / macOS `~/Library` / Linux `/etc` chosen by `process.platform`);
+  extend further via manifest `paths:`.
 - **`--unsafe-no-sandbox` is a DEV-ONLY escape hatch** for offline/positive scenarios. It must
   NEVER be used to run real untrusted skills/agents — Phase 3 detonation must always be contained
   (x86+Docker, sandbox `all`, network off).

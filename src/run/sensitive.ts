@@ -1,10 +1,7 @@
 import { normalizePath, pathBoundaryMatch } from './paths.js';
 
-// NOTE (known gap): this default list is Unix-centric (~ + POSIX paths). Windows host locations
-// (e.g. %USERPROFILE%\.aws, AppData credential stores) and some macOS-specific paths are NOT covered
-// by the defaults — add them via the manifest `paths:` extension. Tracked as host-coverage TODO.
-/** High-value locations an agent should not be reaching for. Extend per-manifest via `paths`. */
-export const DEFAULT_SENSITIVE_PATHS = [
+// Home-based locations (these resolve under ~ on every OS — Windows C:\Users\<u>\.ssh, etc.).
+const COMMON_SENSITIVE = [
   '~/.ssh',
   '~/.aws/credentials',
   '~/.aws',
@@ -15,8 +12,19 @@ export const DEFAULT_SENSITIVE_PATHS = [
   '~/.git-credentials',
   '~/.kube/config',
   '~/.docker/config.json',
-  '/etc/passwd',
-  '/etc/shadow',
+];
+
+// Platform-specific host locations (normalizePath collapses the home dir to ~ and lowercases).
+const PLATFORM_SENSITIVE: Record<string, string[]> = {
+  win32: ['~/appdata/roaming', '~/appdata/local', '~/_netrc'],
+  darwin: ['~/library/keychains', '~/library/application support', '/etc/passwd'],
+  linux: ['/etc/passwd', '/etc/shadow'],
+};
+
+/** High-value locations an agent should not be reaching for (platform-aware). Extend via manifest `paths`. */
+export const DEFAULT_SENSITIVE_PATHS = [
+  ...COMMON_SENSITIVE,
+  ...(PLATFORM_SENSITIVE[process.platform] ?? PLATFORM_SENSITIVE.linux ?? []),
 ];
 
 export interface SensitiveSource {
