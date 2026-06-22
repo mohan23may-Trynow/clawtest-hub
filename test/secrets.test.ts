@@ -10,8 +10,15 @@ describe('scanForSecrets', () => {
     expect(scanForSecrets('sk-TESTONLYabcdef0123456789EXAMPLE').some((h) => h.name === 'openai-key')).toBe(true);
   });
 
-  it('detects a generic credential assignment', () => {
+  it('detects a credential-shaped generic assignment', () => {
     expect(scanForSecrets('password = "hunter2supersecret"').length).toBeGreaterThan(0);
+  });
+
+  it('does NOT flag benign mentions (tightened generic pattern)', () => {
+    expect(scanForSecrets('the secret to success is persistence')).toHaveLength(0); // no = / :
+    expect(scanForSecrets('password = "changeme"')).toHaveLength(0); // too short
+    expect(scanForSecrets('apikey: "documentation"')).toHaveLength(0); // letters only, no digit
+    expect(scanForSecrets('token: "the meeting"')).toHaveLength(0); // not credential-shaped
   });
 
   it('returns nothing for clean text', () => {
@@ -28,11 +35,18 @@ describe('scanForSecrets', () => {
 });
 
 describe('redact', () => {
-  it('never returns or embeds the full secret', () => {
+  it('never returns or embeds the full secret (long value)', () => {
     const full = 'AKIAIOSFODNN7EXAMPLE';
     const r = redact(full);
     expect(r).not.toBe(full);
     expect(full.includes(r)).toBe(false);
     expect(r).toContain('…');
+  });
+
+  it('fully masks short values (not reconstructable from shown chars)', () => {
+    const r = redact('AKIA1234'); // 8 chars
+    expect(r).toBe('***(8 chars)');
+    expect(r).not.toContain('AKIA');
+    expect(r).not.toContain('1234');
   });
 });

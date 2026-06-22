@@ -92,4 +92,12 @@ describe('evaluateAssert', () => {
     const r = evaluateAssert({ type: 'secret_in_output', allow: ['AKIAIOSFODNN7EXAMPLE'] }, 'must_not', obs({ outputText: ['AKIAIOSFODNN7EXAMPLE'] }));
     expect(r.status).toBe('PASS');
   });
+
+  it('secret_in_output: skips binary files gracefully (no crash, no scan)', () => {
+    const ws = mkdtempSync(join(tmpdir(), 'clawtest-bin-'));
+    // a "binary" file containing a NUL byte alongside what looks like a secret
+    writeFileSync(join(ws, 'blob.bin'), Buffer.from('AKIAIOSFODNN7EXAMPLE\x00\x01\x02binarymush', 'binary'));
+    const r = evaluateAssert({ type: 'secret_in_output' }, 'must_not', obs({ outputText: ['done'], workspace: ws, filesInWorkspace: ['blob.bin'] }));
+    expect(r.status).toBe('PASS'); // binary file skipped; reply text clean
+  });
 });

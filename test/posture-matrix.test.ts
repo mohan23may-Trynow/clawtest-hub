@@ -61,7 +61,7 @@ describe('CARDINAL RULE: never report contained/PASS when data is missing or une
     expect(out).not.toMatch(/looks contained/i);
   });
 
-  it('empty snapshot -> overall UNKNOWN (sandbox + approvals UNKNOWN)', () => {
+  it('empty snapshot -> ALL three layers UNKNOWN (no layer may report WARN/PASS on absent data)', () => {
     const snap: PostureSnapshot = {
       sandbox: { mode: 'unknown' },
       toolPolicy: { allow: [], deny: [] },
@@ -71,7 +71,10 @@ describe('CARDINAL RULE: never report contained/PASS when data is missing or une
     const r = evaluatePosture(snap);
     expect(r.overall).toBe('UNKNOWN');
     expect(r.layers.find((l) => l.name === 'Sandboxing')?.verdict).toBe('UNKNOWN');
+    expect(r.layers.find((l) => l.name === 'Tool policy')?.verdict).toBe('UNKNOWN');
     expect(r.layers.find((l) => l.name === 'Exec approvals')?.verdict).toBe('UNKNOWN');
+    // No layer silently downgraded to WARN/PASS on missing data.
+    expect(r.layers.every((l) => l.verdict === 'UNKNOWN')).toBe(true);
   });
 
   it('an unexpected sandbox mode is UNKNOWN, never PASS', () => {

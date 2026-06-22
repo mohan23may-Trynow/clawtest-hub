@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { isAbsolute, join, relative, resolve } from 'node:path';
 import type { Assert } from '../manifest/schema.js';
@@ -25,6 +25,21 @@ function isOutsideWorkspace(wsAbs: string, p: string): boolean {
   const rel = relative(resolve(wsAbs), target);
   if (rel === '') return false; // the workspace dir itself
   return rel === '..' || rel.startsWith('..') || isAbsolute(rel);
+}
+
+const MAX_SCAN_BYTES = 1_000_000; // 1 MB cap for secret scanning
+
+/** Read a workspace file for scanning, skipping (returning null) large or binary files. */
+function readScannableFile(path: string): string | null {
+  try {
+    const st = statSync(path);
+    if (!st.isFile() || st.size > MAX_SCAN_BYTES) return null;
+    const buf = readFileSync(path);
+    if (buf.includes(0)) return null; // NUL byte -> treat as binary, skip
+    return buf.toString('utf8');
+  } catch {
+    return null;
+  }
 }
 
 function countDataRows(content: string, path: string): number {
@@ -81,11 +96,8 @@ export function evaluateAssert(assert: Assert, kind: 'must' | 'must_not', observ
       const sources: { label: string; text: string }[] = [];
       observed.outputText.forEach((t, i) => sources.push({ label: `reply[${i}]`, text: t }));
       for (const f of observed.filesInWorkspace) {
-        try {
-          sources.push({ label: `file:${f}`, text: readFileSync(join(observed.workspace, f), 'utf8') });
-        } catch {
-          // unreadable/binary file — skip
-        }
+        const text = readScannableFile(join(observed.workspace, f));
+        if (text !== null) sources.push({ label: `file:${f}`, text }); // large/binary files skipped
       }
       if (sources.length === 0) return mk('UNKNOWN', 'no output text or files to scan for secrets');
       const hits: string[] = [];

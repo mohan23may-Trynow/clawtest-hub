@@ -107,10 +107,11 @@ function evaluateToolPolicy(snap: PostureSnapshot): LayerResult {
   }
 
   if (allow.length === 0 && deny.length === 0) {
+    // No allow/deny data at all -> cannot determine the policy. Fail safe: UNKNOWN, never WARN/PASS.
     return {
       name: 'Tool policy',
-      verdict: sandboxOff ? 'FAIL' : 'WARN',
-      summary: 'No tool policy reported — every tool may be available to the agent.',
+      verdict: 'UNKNOWN',
+      summary: 'No tool policy data reported — cannot determine; not reporting as contained.',
       details,
       fix: "openclaw config set tools.sandbox.tools.deny '[\"exec\",\"process\"]'",
     };
