@@ -1,4 +1,4 @@
-import { rmSync } from 'node:fs';
+import { rmSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { loadManifest } from '../manifest/load.js';
 import type { Manifest } from '../manifest/schema.js';
@@ -9,6 +9,7 @@ import { observeRun } from '../run/observe.js';
 import { evaluateAssert } from '../run/asserts.js';
 import { aggregate, type RunRecord, type ScenarioVerdict } from '../run/verdict.js';
 import { buildRunJson, renderRunReport } from '../run/report.js';
+import { runHtml } from '../report/html.js';
 
 export interface RunOptions {
   json?: boolean;
@@ -17,6 +18,7 @@ export interface RunOptions {
   unsafeNoSandbox?: boolean;
   agent?: string;
   timeoutSec?: number;
+  html?: string | boolean;
 }
 
 export type ExecuteResult =
@@ -101,7 +103,14 @@ export async function runManifest(manifestPath: string, opts: RunOptions): Promi
     console.error(r.message);
     return r.code;
   }
-  if (opts.json) console.log(JSON.stringify(buildRunJson(r.manifest, r.records, r.scenario), null, 2));
-  else console.log(renderRunReport(r.manifest, r.records, r.scenario));
+  if (opts.html !== undefined && opts.html !== false) {
+    const path = typeof opts.html === 'string' ? opts.html : 'run-report.html';
+    writeFileSync(path, runHtml(r.manifest, r.records, r.scenario));
+    console.log(`Wrote ${path}`);
+  } else if (opts.json) {
+    console.log(JSON.stringify(buildRunJson(r.manifest, r.records, r.scenario), null, 2));
+  } else {
+    console.log(renderRunReport(r.manifest, r.records, r.scenario));
+  }
   return r.scenario.verdict === 'PASS' ? 0 : 1;
 }

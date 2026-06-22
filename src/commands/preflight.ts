@@ -1,9 +1,11 @@
+import { writeFileSync } from 'node:fs';
 import { basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import pc from 'picocolors';
 import { gatherPosture } from './posture.js';
 import { executeManifest } from './run.js';
 import { listManifests } from '../run/suite.js';
+import { preflightHtml } from '../report/html.js';
 
 /** Default scenario suite ships in the repo at examples/preflight (works from src/ and dist/). */
 const DEFAULT_SUITE = fileURLToPath(new URL('../../examples/preflight', import.meta.url));
@@ -16,6 +18,7 @@ export interface PreflightOptions {
   stateDir?: string;
   timeoutSec?: number;
   unsafeNoSandbox?: boolean;
+  html?: string | boolean;
 }
 
 interface ScenarioOutcome {
@@ -74,7 +77,14 @@ export async function runPreflight(opts: PreflightOptions): Promise<number> {
   // Why a GO had caveats (WARN posture layers). Future --strict: non-empty warnings flip GO -> NO-GO.
   const warnings = g.result.layers.filter((l) => l.verdict === 'WARN').map((l) => `${l.name}: ${l.summary}`);
 
-  if (opts.json) {
+  if (opts.html !== undefined && opts.html !== false) {
+    const path = typeof opts.html === 'string' ? opts.html : 'preflight-report.html';
+    writeFileSync(
+      path,
+      preflightHtml({ overall, warnings, posture, scenarios: scenarios.map((s) => ({ name: s.name, verdict: s.verdict })) }),
+    );
+    console.log(`Wrote ${path}`);
+  } else if (opts.json) {
     console.log(
       JSON.stringify(
         {

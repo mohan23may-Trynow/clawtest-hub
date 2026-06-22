@@ -45,6 +45,15 @@ clawtest-hub run examples/leaky-agent.yaml          --from-fixture test/fixtures
 ```
 Exit codes: `0` PASS · `1` FAIL or UNKNOWN · `2` tool/usage error.
 
+### Shareable HTML report
+All three commands accept **`--html [file]`** to write a single **self-contained** HTML report
+(inline CSS, no scripts, no external fetches) — red→green verdicts, offending layers/scenarios named,
+evidence redacted, `UNKNOWN` shown amber (never green). Exit code is unchanged.
+```bash
+clawtest-hub posture   --from-fixture test/fixtures/unsafe --html posture.html
+clawtest-hub preflight --from-fixture test/fixtures/preflight/leaky --html preflight.html
+```
+
 ## Pre-Flight Suite
 One command for a "before go-live" decision — it composes the posture checks and a suite of scenario
 manifests into a single **GO / NO-GO** (fail-safe: any FAIL or UNKNOWN ⇒ NO-GO).

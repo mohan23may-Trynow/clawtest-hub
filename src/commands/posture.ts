@@ -1,14 +1,17 @@
+import { writeFileSync } from 'node:fs';
 import { locateOpenclaw, type OpenclawLocation } from '../openclaw/locate.js';
 import { fixtureRunner, liveRunner, type OpenclawRunner } from '../openclaw/exec.js';
 import { parseExecPolicy, parseSandboxExplain } from '../posture/parse.js';
 import { evaluatePosture, type PostureResult } from '../posture/evaluate.js';
 import type { PostureSnapshot } from '../posture/types.js';
 import { buildJsonReport, exitCodeFor, renderHuman } from '../report/render.js';
+import { postureHtml } from '../report/html.js';
 
 export interface PostureOptions {
   json?: boolean;
   stateDir?: string;
   fromFixture?: string;
+  html?: string | boolean;
 }
 
 export type PostureGather =
@@ -49,8 +52,15 @@ export async function runPosture(opts: PostureOptions): Promise<number> {
     console.error(g.message);
     return 2;
   }
-  if (opts.json) console.log(JSON.stringify(buildJsonReport(g.loc, g.result, g.snapshot), null, 2));
-  else console.log(renderHuman(g.loc, g.result, g.snapshot));
+  if (opts.html !== undefined && opts.html !== false) {
+    const path = typeof opts.html === 'string' ? opts.html : 'posture-report.html';
+    writeFileSync(path, postureHtml(g.loc, g.result, g.snapshot));
+    console.log(`Wrote ${path}`);
+  } else if (opts.json) {
+    console.log(JSON.stringify(buildJsonReport(g.loc, g.result, g.snapshot), null, 2));
+  } else {
+    console.log(renderHuman(g.loc, g.result, g.snapshot));
+  }
   return exitCodeFor(g.result);
 }
 
