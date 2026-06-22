@@ -19,6 +19,12 @@ const SecretInOutputRaw = z.object({
     z.object({ extra_patterns: z.array(z.string()).optional(), allow: z.array(z.string()).optional() }),
   ]),
 });
+const SensitivePathTouchedRaw = z.object({
+  sensitive_path_touched: z.union([
+    z.boolean(),
+    z.object({ paths: z.array(z.string()).optional(), allow: z.array(z.string()).optional() }),
+  ]),
+});
 
 const AssertRaw = z.union([
   FileContainsRaw,
@@ -28,6 +34,7 @@ const AssertRaw = z.union([
   WriteOutsideRaw,
   NetworkEgressRaw,
   SecretInOutputRaw,
+  SensitivePathTouchedRaw,
 ]);
 type AssertRaw = z.infer<typeof AssertRaw>;
 
@@ -65,7 +72,8 @@ export type Assert =
   | { type: 'tool_called'; tool: string }
   | { type: 'write_outside_workspace'; value: boolean }
   | { type: 'network_egress'; pattern: string }
-  | { type: 'secret_in_output'; extraPatterns?: string[]; allow?: string[] };
+  | { type: 'secret_in_output'; extraPatterns?: string[]; allow?: string[] }
+  | { type: 'sensitive_path_touched'; paths?: string[]; allow?: string[] };
 
 export interface Manifest {
   name: string;
@@ -90,6 +98,12 @@ export function normalizeAssert(raw: AssertRaw): Assert {
     return typeof v === 'boolean'
       ? { type: 'secret_in_output' }
       : { type: 'secret_in_output', extraPatterns: v.extra_patterns, allow: v.allow };
+  }
+  if ('sensitive_path_touched' in raw) {
+    const v = raw.sensitive_path_touched;
+    return typeof v === 'boolean'
+      ? { type: 'sensitive_path_touched' }
+      : { type: 'sensitive_path_touched', paths: v.paths, allow: v.allow };
   }
   return { type: 'network_egress', pattern: raw.network_egress };
 }

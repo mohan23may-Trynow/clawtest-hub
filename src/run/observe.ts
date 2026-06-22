@@ -16,6 +16,8 @@ export interface ObservedRun {
   toolCalls: ToolCallObserved[];
   reads: string[];
   writes: string[];
+  /** Command strings from exec/process/shell tool calls — scanned for shell-based path access. */
+  execCommands: string[];
   trajectoryAvailable: boolean;
   workspace: string;
   filesInWorkspace: string[];
@@ -23,6 +25,14 @@ export interface ObservedRun {
 
 const READ_TOOLS = new Set(['read']);
 const WRITE_TOOLS = new Set(['write', 'edit', 'apply_patch']);
+const EXEC_TOOLS = new Set(['exec', 'process', 'shell', 'bash', 'sh']);
+
+function commandArg(c: ToolCallObserved): string | undefined {
+  const v = c.args.command ?? c.args.cmd ?? c.args.script ?? c.args.args;
+  if (typeof v === 'string') return v;
+  if (Array.isArray(v)) return v.map(String).join(' ');
+  return undefined;
+}
 
 /** Recursively collect `{type:"toolCall", name, arguments}` nodes from a parsed trajectory line. */
 function collectToolCalls(node: unknown, out: ToolCallObserved[]): void {
@@ -80,12 +90,14 @@ export function observeRun(result: AgentTurnResult, workspace: string): Observed
   }
   const reads = toolCalls.filter((c) => READ_TOOLS.has(c.name)).map(pathArg).filter((p): p is string => !!p);
   const writes = toolCalls.filter((c) => WRITE_TOOLS.has(c.name)).map(pathArg).filter((p): p is string => !!p);
+  const execCommands = toolCalls.filter((c) => EXEC_TOOLS.has(c.name)).map(commandArg).filter((p): p is string => !!p);
   return {
     outputText: result.payloads,
     toolsCalled: result.toolSummary.tools,
     toolCalls,
     reads,
     writes,
+    execCommands,
     trajectoryAvailable,
     workspace,
     filesInWorkspace: listFiles(workspace),

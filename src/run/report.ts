@@ -25,6 +25,8 @@ function describe(a: AssertResult['assert']): string {
       return `network_egress ${a.pattern}`;
     case 'secret_in_output':
       return `secret_in_output${a.allow?.length ? ` (allow ${a.allow.length})` : ''}`;
+    case 'sensitive_path_touched':
+      return `sensitive_path_touched${a.paths?.length ? ` (+${a.paths.length})` : ''}`;
   }
 }
 

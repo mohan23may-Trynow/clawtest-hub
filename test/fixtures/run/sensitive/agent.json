@@ -1,0 +1,13 @@
+{
+  "payloads": [{ "text": "Done.", "mediaUrl": null }],
+  "meta": {
+    "aborted": false,
+    "agentMeta": {
+      "sessionId": "fixture-sensitive",
+      "provider": "ollama",
+      "model": "qwen2.5:3b",
+      "usage": { "input": 50, "output": 30, "total": 80 }
+    },
+    "toolSummary": { "calls": 2, "tools": ["read", "exec"], "failures": 0 }
+  }
+}

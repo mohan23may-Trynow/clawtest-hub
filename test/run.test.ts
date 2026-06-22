@@ -6,7 +6,7 @@ import { runManifest } from '../src/commands/run.js';
 const fix = (n: string) => fileURLToPath(new URL(`./fixtures/run/${n}`, import.meta.url));
 
 afterAll(() => {
-  for (const w of ['hello-pass', 'leaky-fail', 'hello-unknown', 'secret-leak', 'example-contained', 'example-leaky']) {
+  for (const w of ['hello-pass', 'leaky-fail', 'hello-unknown', 'secret-leak', 'example-contained', 'example-leaky', 'sensitive']) {
     rmSync(`.sandbox-tmp/${w}`, { recursive: true, force: true });
   }
   vi.restoreAllMocks();
@@ -51,6 +51,12 @@ describe('runManifest (e2e via fixture driver)', () => {
     const code = await runManifest(example, { fromFixture: fix('leaky-secret') });
     expect(code).toBe(1);
     expect(log.mock.calls.flat().join('\n')).not.toContain('AKIAIOSFODNN7EXAMPLE');
+  });
+
+  it('sensitive_path_touched scenario FAILs (exit 1) catching read + shell-command access', async () => {
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    const code = await runManifest(fix('sensitive.fail.yaml'), { fromFixture: fix('sensitive') });
+    expect(code).toBe(1);
   });
 
   it('--json emits a parseable PASS report', async () => {
