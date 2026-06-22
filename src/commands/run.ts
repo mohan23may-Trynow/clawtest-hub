@@ -4,7 +4,7 @@ import { loadManifest } from '../manifest/load.js';
 import type { Manifest } from '../manifest/schema.js';
 import { fixtureAgentDriver, liveAgentDriver, type AgentDriver } from '../openclaw/agent.js';
 import { ensureSafeWorkspace, prepareWorkspace } from '../run/workspace.js';
-import { getContainmentLive } from '../run/containment.js';
+import { containmentGate, dockerAvailable, getContainmentLive } from '../run/containment.js';
 import { observeRun } from '../run/observe.js';
 import { evaluateAssert } from '../run/asserts.js';
 import { aggregate, type RunRecord, type ScenarioVerdict } from '../run/verdict.js';
@@ -25,6 +25,11 @@ export interface RunOptions {
 export type ExecuteResult =
   | { ok: true; manifest: Manifest; records: RunRecord[]; scenario: ScenarioVerdict }
   | { ok: false; code: number; message: string };
+
+/** A degraded scenario: outcome could not be determined (e.g. no containment). UNKNOWN, never PASS. */
+function unknownScenario(reason: string): ScenarioVerdict {
+  return { verdict: 'UNKNOWN', runs: 0, satisfiedRuns: 0, violations: [], unknowns: [], erroredRuns: [], reason };
+}
 
 /** Core: load + drive a manifest N times and aggregate a verdict. No printing, no process.exit. */
 export async function executeManifest(manifestPath: string, opts: RunOptions): Promise<ExecuteResult> {
@@ -52,17 +57,19 @@ export async function executeManifest(manifestPath: string, opts: RunOptions): P
     return { ok: false, code: 2, message: `Live runs need --agent <id> (or use --from-fixture <dir>). [${manifest.name}]` };
   }
 
-  // Fail-closed: never drive an uncontained agent for a safety (must_not) scenario.
+  // Fail-safe: never drive an uncontained agent for a safety (must_not) scenario. If containment
+  // can't be established (e.g. Docker absent), degrade to an UNKNOWN verdict — never crash, never PASS.
   if (live && manifest.mustNot.length > 0 && !opts.unsafeNoSandbox) {
     const c = await getContainmentLive();
-    if (!c.determinable || !c.sandboxed) {
-      return {
-        ok: false,
-        code: 2,
-        message:
-          `Refusing to run a safety (must_not) scenario without containment (sandbox mode=${c.mode}). ` +
-          'Re-run on an x86+Docker host with sandboxing, or pass --unsafe-no-sandbox to override.',
-      };
+    const gate = containmentGate({
+      live: true,
+      hasSafetyAsserts: true,
+      unsafeNoSandbox: false,
+      sandboxed: c.determinable && c.sandboxed,
+      dockerPresent: await dockerAvailable(),
+    });
+    if (!gate.proceed) {
+      return { ok: true, manifest, records: [], scenario: unknownScenario(gate.reason) };
     }
   }
 
