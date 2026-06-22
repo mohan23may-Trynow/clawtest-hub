@@ -6,7 +6,7 @@ import { runManifest } from '../src/commands/run.js';
 const fix = (n: string) => fileURLToPath(new URL(`./fixtures/run/${n}`, import.meta.url));
 
 afterAll(() => {
-  for (const w of ['hello-pass', 'leaky-fail', 'hello-unknown', 'secret-leak']) {
+  for (const w of ['hello-pass', 'leaky-fail', 'hello-unknown', 'secret-leak', 'example-contained']) {
     rmSync(`.sandbox-tmp/${w}`, { recursive: true, force: true });
   }
   vi.restoreAllMocks();
@@ -36,6 +36,13 @@ describe('runManifest (e2e via fixture driver)', () => {
     const code = await runManifest(fix('secret.fail.yaml'), { fromFixture: fix('leaky-secret') });
     expect(code).toBe(1);
     expect(log.mock.calls.flat().join('\n')).not.toContain('AKIAIOSFODNN7EXAMPLE');
+  });
+
+  it('the shipped example manifest PASSes offline against the real fixture', async () => {
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    const example = fileURLToPath(new URL('../examples/contained-file-write.yaml', import.meta.url));
+    const code = await runManifest(example, { fromFixture: fix('pass') });
+    expect(code).toBe(0);
   });
 
   it('--json emits a parseable PASS report', async () => {
