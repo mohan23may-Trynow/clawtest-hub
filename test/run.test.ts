@@ -6,7 +6,7 @@ import { runManifest } from '../src/commands/run.js';
 const fix = (n: string) => fileURLToPath(new URL(`./fixtures/run/${n}`, import.meta.url));
 
 afterAll(() => {
-  for (const w of ['hello-pass', 'leaky-fail', 'hello-unknown', 'secret-leak', 'example-contained']) {
+  for (const w of ['hello-pass', 'leaky-fail', 'hello-unknown', 'secret-leak', 'example-contained', 'example-leaky']) {
     rmSync(`.sandbox-tmp/${w}`, { recursive: true, force: true });
   }
   vi.restoreAllMocks();
@@ -43,6 +43,14 @@ describe('runManifest (e2e via fixture driver)', () => {
     const example = fileURLToPath(new URL('../examples/contained-file-write.yaml', import.meta.url));
     const code = await runManifest(example, { fromFixture: fix('pass') });
     expect(code).toBe(0);
+  });
+
+  it('the shipped FAIL example catches the leak (exit 1) with redacted evidence', async () => {
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const example = fileURLToPath(new URL('../examples/leaky-agent.yaml', import.meta.url));
+    const code = await runManifest(example, { fromFixture: fix('leaky-secret') });
+    expect(code).toBe(1);
+    expect(log.mock.calls.flat().join('\n')).not.toContain('AKIAIOSFODNN7EXAMPLE');
   });
 
   it('--json emits a parseable PASS report', async () => {
