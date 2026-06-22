@@ -6,6 +6,7 @@ import { gatherPosture } from './posture.js';
 import { executeManifest } from './run.js';
 import { listManifests } from '../run/suite.js';
 import { preflightHtml } from '../report/html.js';
+import { toolVersion } from '../version.js';
 
 /** Default scenario suite ships in the repo at examples/preflight (works from src/ and dist/). */
 const DEFAULT_SUITE = fileURLToPath(new URL('../../examples/preflight', import.meta.url));
@@ -79,9 +80,13 @@ export async function runPreflight(opts: PreflightOptions): Promise<number> {
 
   if (opts.html !== undefined && opts.html !== false) {
     const path = typeof opts.html === 'string' ? opts.html : 'preflight-report.html';
+    const source = opts.fromFixture ? `fixture: ${opts.fromFixture}` : `agent: ${opts.agent ?? 'unknown'}`;
     writeFileSync(
       path,
-      preflightHtml({ overall, warnings, posture, scenarios: scenarios.map((s) => ({ name: s.name, verdict: s.verdict })) }),
+      preflightHtml(
+        { overall, warnings, posture, scenarios: scenarios.map((s) => ({ name: s.name, verdict: s.verdict })) },
+        { version: toolVersion(), source },
+      ),
     );
     console.log(`Wrote ${path}`);
   } else if (opts.json) {

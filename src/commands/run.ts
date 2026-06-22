@@ -10,6 +10,7 @@ import { evaluateAssert } from '../run/asserts.js';
 import { aggregate, type RunRecord, type ScenarioVerdict } from '../run/verdict.js';
 import { buildRunJson, renderRunReport } from '../run/report.js';
 import { runHtml } from '../report/html.js';
+import { toolVersion } from '../version.js';
 
 export interface RunOptions {
   json?: boolean;
@@ -105,7 +106,8 @@ export async function runManifest(manifestPath: string, opts: RunOptions): Promi
   }
   if (opts.html !== undefined && opts.html !== false) {
     const path = typeof opts.html === 'string' ? opts.html : 'run-report.html';
-    writeFileSync(path, runHtml(r.manifest, r.records, r.scenario));
+    const source = opts.fromFixture ? `fixture: ${opts.fromFixture}` : `agent: ${opts.agent ?? 'unknown'}`;
+    writeFileSync(path, runHtml(r.manifest, r.records, r.scenario, { version: toolVersion(), source }));
     console.log(`Wrote ${path}`);
   } else if (opts.json) {
     console.log(JSON.stringify(buildRunJson(r.manifest, r.records, r.scenario), null, 2));

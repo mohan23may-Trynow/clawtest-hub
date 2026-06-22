@@ -6,6 +6,7 @@ import { evaluatePosture, type PostureResult } from '../posture/evaluate.js';
 import type { PostureSnapshot } from '../posture/types.js';
 import { buildJsonReport, exitCodeFor, renderHuman } from '../report/render.js';
 import { postureHtml } from '../report/html.js';
+import { toolVersion } from '../version.js';
 
 export interface PostureOptions {
   json?: boolean;
@@ -54,7 +55,8 @@ export async function runPosture(opts: PostureOptions): Promise<number> {
   }
   if (opts.html !== undefined && opts.html !== false) {
     const path = typeof opts.html === 'string' ? opts.html : 'posture-report.html';
-    writeFileSync(path, postureHtml(g.loc, g.result, g.snapshot));
+    const source = opts.fromFixture ? `fixture: ${opts.fromFixture}` : `live: ${g.loc.stateDir}`;
+    writeFileSync(path, postureHtml(g.loc, g.result, g.snapshot, { version: toolVersion(), source }));
     console.log(`Wrote ${path}`);
   } else if (opts.json) {
     console.log(JSON.stringify(buildJsonReport(g.loc, g.result, g.snapshot), null, 2));

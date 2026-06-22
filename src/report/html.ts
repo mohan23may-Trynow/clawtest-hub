@@ -48,10 +48,34 @@ const STYLE = `
   .unknown{background:#eceff3;color:#3b434c;border-color:#c4ccd6}
   .fail{background:#ffebe9;color:#a4232b;border-color:#f0a8a8}
   .legend .badge{margin-right:6px}
+  table.meta td{border:0;padding:2px 0} table.meta td:first-child{color:#656d76;width:96px;font-size:12.5px}
 `;
 
-export function htmlDocument(title: string, bannerWord: string, bannerLabel: string, body: string): string {
-  const generatedAt = new Date().toISOString();
+export interface DocMeta {
+  /** What was tested (e.g. the scenario/agent subject). */
+  subject: string;
+  /** Where it came from — a fixture dir or the live target. */
+  source: string;
+  version: string;
+  runs?: number;
+}
+
+export function htmlDocument(
+  title: string,
+  bannerWord: string,
+  bannerLabel: string,
+  meta: DocMeta,
+  body: string,
+): string {
+  const rows: [string, string][] = [
+    ['Tested', meta.subject],
+    ['Source', meta.source],
+  ];
+  if (meta.runs !== undefined) rows.push(['Runs', String(meta.runs)]);
+  rows.push(['Tool', `clawtest-hub ${meta.version}`], ['Generated', new Date().toISOString()]);
+  const metaTable = `<table class="meta">${rows
+    .map(([k, v]) => `<tr><td>${escapeHtml(k)}</td><td>${escapeHtml(v)}</td></tr>`)
+    .join('')}</table>`;
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -59,8 +83,8 @@ export function htmlDocument(title: string, bannerWord: string, bannerLabel: str
 <style>${STYLE}</style></head>
 <body><div class="wrap">
 <h1>${escapeHtml(title)}</h1>
-<p class="sub">clawtest-hub · generated ${escapeHtml(generatedAt)}</p>
 <div class="banner ${cls(bannerWord)}">${escapeHtml(bannerLabel)}</div>
+<div class="card">${metaTable}</div>
 <p class="sub legend">${badge('PASS')} ${badge('WARN')} ${badge('UNKNOWN')} ${badge('FAIL')} — UNKNOWN is never treated as pass</p>
 ${body}
 </div></body></html>
@@ -75,13 +99,24 @@ function layerCard(l: LayerResult): string {
 <p class="muted">${escapeHtml(l.summary)}</p><ul>${details}</ul>${fix}</div>`;
 }
 
-export function postureHtml(loc: OpenclawLocation, result: PostureResult, _snapshot: PostureSnapshot): string {
+export function postureHtml(
+  loc: OpenclawLocation,
+  result: PostureResult,
+  _snapshot: PostureSnapshot,
+  meta: { version: string; source: string },
+): string {
   const target = `<div class="card"><h2>target</h2>
 <p class="muted">state dir: ${escapeHtml(loc.stateDir)}</p>
 <p class="muted">workspace: ${escapeHtml(loc.workspace)}${loc.isRealWorkspace ? ' (your real workspace)' : ''}</p>
 <p class="muted">gateway: ${escapeHtml(loc.gatewayUrl)}</p></div>`;
   const body = target + result.layers.map(layerCard).join('');
-  return htmlDocument('Agent safety posture', result.overall, `OVERALL: ${result.overall}`, body);
+  return htmlDocument(
+    'Agent safety posture',
+    result.overall,
+    `OVERALL: ${result.overall}`,
+    { subject: 'Agent safety posture', source: meta.source, version: meta.version },
+    body,
+  );
 }
 
 // ---- run ----
@@ -133,15 +168,26 @@ function evidenceList(title: string, items: { runIndex: number; result: AssertRe
   return `<div class="card"><h2>${escapeHtml(title)}</h2><ul>${lis}</ul></div>`;
 }
 
-export function runHtml(manifest: Manifest, records: RunRecord[], scenario: ScenarioVerdict): string {
-  const meta = `<div class="card"><h2>${escapeHtml(manifest.name)}</h2><p class="muted">${scenario.runs} run(s) · ${escapeHtml(scenario.reason)}</p></div>`;
+export function runHtml(
+  manifest: Manifest,
+  records: RunRecord[],
+  scenario: ScenarioVerdict,
+  meta: { version: string; source: string },
+): string {
+  const reasonCard = `<div class="card"><p class="muted">${escapeHtml(scenario.reason)}</p></div>`;
   const body =
-    meta +
+    reasonCard +
     assertTable(manifest.must, records, 'must') +
     assertTable(manifest.mustNot, records, 'must_not') +
     evidenceList('safety violations', scenario.violations) +
     evidenceList('unknowns (cannot certify — fail-safe)', scenario.unknowns);
-  return htmlDocument(`Run: ${manifest.name}`, scenario.verdict, `VERDICT: ${scenario.verdict}`, body);
+  return htmlDocument(
+    `Run: ${manifest.name}`,
+    scenario.verdict,
+    `VERDICT: ${scenario.verdict}`,
+    { subject: manifest.name, source: meta.source, version: meta.version, runs: scenario.runs },
+    body,
+  );
 }
 
 // ---- preflight ----
@@ -152,7 +198,7 @@ export interface PreflightHtmlData {
   scenarios: { name: string; verdict: string }[];
 }
 
-export function preflightHtml(d: PreflightHtmlData): string {
+export function preflightHtml(d: PreflightHtmlData, meta: { version: string; source: string }): string {
   const label = d.overall === 'GO' && d.warnings.length ? 'GO (with warnings)' : d.overall;
   const postureCard = `<div class="card"><h2>${badge(d.posture)} safety posture</h2></div>`;
   const scenRows = d.scenarios.map((s) => `<tr><td>${badge(s.verdict)}</td><td>${escapeHtml(s.name)}</td></tr>`).join('');
@@ -160,5 +206,11 @@ export function preflightHtml(d: PreflightHtmlData): string {
   const warnCard = d.warnings.length
     ? `<div class="card"><h2>warnings</h2><ul>${d.warnings.map((w) => `<li>${escapeHtml(w)}</li>`).join('')}</ul></div>`
     : '';
-  return htmlDocument('Preflight', d.overall, label, postureCard + scenCard + warnCard);
+  return htmlDocument(
+    'Preflight',
+    d.overall,
+    label,
+    { subject: `Preflight suite (${d.scenarios.length} scenarios)`, source: meta.source, version: meta.version },
+    postureCard + scenCard + warnCard,
+  );
 }
