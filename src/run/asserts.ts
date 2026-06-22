@@ -48,7 +48,9 @@ export function evaluateAssert(assert: Assert, kind: 'must' | 'must_not', observ
 
   switch (assert.type) {
     case 'file_contains': {
-      const full = join(observed.workspace, assert.path);
+      // Path-traversal guard: a manifest must not read files outside its own workspace.
+      if (isOutsideWorkspace(observed.workspace, assert.path)) return mk('FAIL', `path escapes workspace: ${assert.path}`);
+      const full = resolve(observed.workspace, assert.path);
       if (!existsSync(full)) return mk('FAIL', `file not produced: ${assert.path}`);
       const content = readFileSync(full, 'utf8');
       if (assert.text !== undefined && !content.includes(assert.text))

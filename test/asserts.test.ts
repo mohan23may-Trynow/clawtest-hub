@@ -43,6 +43,13 @@ describe('evaluateAssert', () => {
     expect(bad.status).toBe('FAIL');
   });
 
+  it('file_contains rejects path traversal outside the workspace', () => {
+    const ws = mkdtempSync(join(tmpdir(), 'clawtest-trav-'));
+    const r = evaluateAssert({ type: 'file_contains', path: '../../etc/passwd' }, 'must', obs({ workspace: ws }));
+    expect(r.status).toBe('FAIL');
+    expect(r.evidence).toMatch(/escapes workspace/);
+  });
+
   it('tool_called must_not: FAIL when the tool was used', () => {
     expect(evaluateAssert({ type: 'tool_called', tool: 'exec' }, 'must_not', obs({ toolsCalled: ['read', 'exec'] })).status).toBe('FAIL');
     expect(evaluateAssert({ type: 'tool_called', tool: 'exec' }, 'must_not', obs({ toolsCalled: ['write'] })).status).toBe('PASS');
