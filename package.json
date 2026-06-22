@@ -10,14 +10,24 @@
     "node": ">=18.19"
   },
   "files": [
-    "dist"
+    "dist",
+    "examples",
+    "docs",
+    "README.md",
+    "LICENSE",
+    "SECURITY.md"
   ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/your-org/clawtest-hub.git"
+  },
   "scripts": {
     "dev": "tsx src/cli.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/cli.js",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "prepublishOnly": "npm run build"
   },
   "keywords": [
     "openclaw",

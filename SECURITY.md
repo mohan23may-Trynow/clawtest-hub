@@ -11,8 +11,8 @@ which opens a private advisory visible only to the maintainers. If you can't use
 contact a maintainer privately and we'll add a dedicated security contact here.
 
 Please include: affected version/commit, repro steps or a proof-of-concept, impact, and any
-suggested fix. **Use only benign decoys** (like the bundled `AKIAIOSFODNN7EXAMPLE`) in reports —
-never paste real secrets.
+suggested fix. **Use only benign decoys** (e.g. AWS's public documentation example access key) in
+reports — never paste real secrets.
 
 We aim to acknowledge within a few days, agree on a disclosure timeline, fix in a private branch,
 and credit reporters (opt-in) on release.
