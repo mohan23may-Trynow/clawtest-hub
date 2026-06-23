@@ -1,5 +1,7 @@
 # clawtest-hub
 
+![CI](https://github.com/mohan23may-Trynow/clawtest-hub/actions/workflows/ci.yml/badge.svg)
+
 **Local security test-bench for OpenClaw agents — verify containment and test what an agent actually does before you trust it.**
 
 `clawtest-hub` runs on your machine, free. It answers two questions an agent owner actually has:
