@@ -1,19 +1,22 @@
-# Secrets — NEVER commit these
+# Secrets — NEVER commit these.
+# Match real secret-bearing ARTIFACTS (keys, tokens, env, the OpenClaw config), NOT any
+# source/recipe file whose NAME merely contains "secret"/"credential". The old broad
+# *secret*/*credentials* substring globs silently swallowed legitimate files like
+# examples/preflight/no-secret-echo.yaml and src/run/secrets.ts (which hold code + benign
+# decoys, e.g. the AWS doc key AKIAIOSFODNN7EXAMPLE). Keep these patterns narrow.
 .env
 .env.*
 *.token
-*secret*
-*credentials*
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa
+id_ed25519
+secrets.local.*
+credentials.json
 # OpenClaw config can contain the gateway token — never copy it into the repo
 openclaw.json
-
-# Re-include legitimate SOURCE/TEST/FIXTURE files caught by the broad *secret* net above.
-# These contain code and BENIGN decoys only (e.g. the AWS doc key AKIAIOSFODNN7EXAMPLE) — no real secrets.
-!src/run/secrets.ts
-!test/secrets.test.ts
-!test/fixtures/run/secret.fail.yaml
-!test/fixtures/run/leaky-secret/
-!test/fixtures/run/leaky-secret/**
 
 # Node
 node_modules/
