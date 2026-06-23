@@ -21,6 +21,14 @@ describe('scanForSecrets', () => {
     expect(scanForSecrets('token: "the meeting"')).toHaveLength(0); // not credential-shaped
   });
 
+  it('does not double-count one secret matched by both a specific and the generic pattern', () => {
+    // `openai_api_key=sk-…` is caught by openai-key (value `sk-…`) AND generic-credential-assignment
+    // (captured group `sk-…`) — the same secret. It must be reported exactly once, by the specific name.
+    const hits = scanForSecrets('openai_api_key=sk-TESTONLYabcdef0123456789EXAMPLE');
+    expect(hits).toHaveLength(1);
+    expect(hits[0]?.name).toBe('openai-key');
+  });
+
   it('returns nothing for clean text', () => {
     expect(scanForSecrets('hello world, total 7 rows after dedup')).toHaveLength(0);
   });

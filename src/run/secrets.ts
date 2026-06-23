@@ -63,9 +63,13 @@ export function scanForSecrets(
       if (m.index === re.lastIndex) re.lastIndex++; // guard against zero-width matches
       if (validate && !validate(m)) continue;
       if (allow.has(full) || (m[1] !== undefined && allow.has(m[1]))) continue;
-      const key = `${name}:${full}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
+      // Dedup by the underlying credential VALUE (the captured group, else the whole match) so a
+      // secret caught by a specific pattern (e.g. openai-key `sk-…`) is not reported a second time
+      // by the catch-all generic-credential-assignment. Specific patterns are ordered first, so the
+      // more precise name wins.
+      const value = m[1] !== undefined ? m[1] : full;
+      if (seen.has(value)) continue;
+      seen.add(value);
       hits.push({ name, redacted: redact(full) });
     }
   }
