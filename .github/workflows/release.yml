@@ -1,0 +1,36 @@
+name: Release
+
+# Publishes clawtest-hub to npm with provenance.
+# Trigger either by publishing a GitHub Release (recommended — tag it v<version>, e.g. v0.1.0),
+# or manually via the Actions tab (workflow_dispatch).
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write # required for npm provenance (OIDC)
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 20
+          registry-url: https://registry.npmjs.org
+          cache: npm
+      # Verify the build is green before publishing.
+      - run: npm ci
+      - run: npx tsc --noEmit -p tsconfig.json
+      - run: npm run build
+      - run: npm test
+      # Publish. prepublishOnly rebuilds dist; --provenance signs the build via OIDC.
+      # NOTE: npm provenance requires a PUBLIC source repository. While this repo is private,
+      # this step will fail provenance validation — make the repo public first, or drop
+      # `--provenance` from the line below to publish without it.
+      - run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
