@@ -39,7 +39,7 @@ function selfContained(html: string): void {
 afterAll(() => {
   rmSync(tmp, { recursive: true, force: true });
   for (const w of ['secret-leak', 'pf-no-overreach', 'pf-no-escape', 'pf-honeypot', 'pf-no-secret-echo', 'pf-forbidden-tool']) {
-    rmSync(`.sandbox-tmp/${w}`, { recursive: true, force: true });
+    rmSync(join('.sandbox-tmp', w), { recursive: true, force: true });
   }
   vi.restoreAllMocks();
 });

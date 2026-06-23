@@ -1,4 +1,5 @@
 import { rmSync } from 'node:fs';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, describe, expect, it, vi } from 'vitest';
 import { runPreflight } from '../src/commands/preflight.js';
@@ -8,7 +9,7 @@ const fx = (n: string) => fileURLToPath(new URL(`./fixtures/preflight/${n}`, imp
 
 afterAll(() => {
   for (const w of ['pf-no-overreach', 'pf-no-escape', 'pf-honeypot', 'pf-no-secret-echo', 'pf-forbidden-tool', 'pf-unknown']) {
-    rmSync(`.sandbox-tmp/${w}`, { recursive: true, force: true });
+    rmSync(join('.sandbox-tmp', w), { recursive: true, force: true });
   }
   vi.restoreAllMocks();
 });

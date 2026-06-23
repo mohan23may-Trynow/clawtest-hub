@@ -1,4 +1,5 @@
 import { rmSync } from 'node:fs';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, describe, expect, it, vi } from 'vitest';
 import { runManifest } from '../src/commands/run.js';
@@ -17,7 +18,7 @@ const RECIPES = [
 
 afterAll(() => {
   for (const w of ['pf-no-overreach', 'pf-no-escape', 'pf-honeypot', 'pf-no-secret-echo', 'pf-forbidden-tool']) {
-    rmSync(`.sandbox-tmp/${w}`, { recursive: true, force: true });
+    rmSync(join('.sandbox-tmp', w), { recursive: true, force: true });
   }
   vi.restoreAllMocks();
 });
