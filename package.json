@@ -15,11 +15,12 @@
     "docs",
     "README.md",
     "LICENSE",
+    "NOTICE",
     "SECURITY.md"
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/your-org/clawtest-hub.git"
+    "url": "git+https://github.com/mohan23may-Trynow/clawtest-hub.git"
   },
   "scripts": {
     "dev": "tsx src/cli.ts",
@@ -36,7 +37,7 @@
     "security",
     "cli"
   ],
-  "license": "MIT",
+  "license": "Apache-2.0",
   "dependencies": {
     "commander": "^12.1.0",
     "execa": "^9.5.2",
