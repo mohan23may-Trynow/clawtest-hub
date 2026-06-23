@@ -1,11 +1,13 @@
 name: Release
 
 # Publishes clawtest-hub to npm with provenance.
-# Trigger either by publishing a GitHub Release (recommended — tag it v<version>, e.g. v0.1.0),
-# or manually via the Actions tab (workflow_dispatch).
+# Trigger by publishing a GitHub Release (recommended — tag it v<version>, e.g. v0.1.0),
+# by pushing a v* tag, or manually via the Actions tab (workflow_dispatch).
 on:
   release:
     types: [published]
+  push:
+    tags: ['v*']
   workflow_dispatch:
 
 permissions:
